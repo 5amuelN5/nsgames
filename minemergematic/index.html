@@ -212,6 +212,10 @@ input[type=range]{-webkit-appearance:none;appearance:none;width:140px;height:8px
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#f5c542;border:3px solid #6b4605}
 input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#f5c542;border:3px solid #6b4605}
 .rv{min-width:46px;text-align:right;font-family:'Lilita One'}
+.set.stack{flex-direction:column;align-items:stretch;gap:8px}
+.rg.hud{width:100%}
+.rg.hud input[type=range]{flex:1;width:auto;min-width:0}
+.btn.step{width:30px;height:30px;padding:0;font-size:20px;line-height:1;display:grid;place-items:center;flex:none}
 #expTa{width:100%;height:84px;background:#2a170a;color:var(--cream);border:2px solid var(--wood-dd);border-radius:6px;padding:6px;font-size:11px;font-family:ui-monospace,monospace;resize:vertical;user-select:text;-webkit-user-select:text}
 .keys{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;font-size:14px;padding:4px 2px;align-items:center}
 kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-bottom-width:4px;border-radius:5px;padding:1px 7px;font-size:12px;white-space:nowrap;display:inline-block;margin:1px}
@@ -2013,11 +2017,17 @@ const RANGE_FMT = { autoSpeed: v => v + '/s', vol: pct, musicVol: pct, ui: pct, 
 const sTog = (k, label, desc = '') => `<div class="set"><span>${label}${desc ? `<small>${desc}</small>` : ''}</span><button class="tog ${S.set[k] ? 'on' : ''}" data-act="stog" data-k="${k}"><i></i></button></div>`;
 const sRange = (k, label, min, max, step, desc = '') => `<div class="set"><span>${label}${desc ? `<small>${desc}</small>` : ''}</span><span class="rg"><input type="range" min="${min}" max="${max}" step="${step}" value="${S.set[k]}" data-k="${k}"><span class="rv" id="rv_${k}">${RANGE_FMT[k](S.set[k])}</span></span></div>`;
 const sSeg = (k, label, opts, desc = '') => `<div class="set"><span>${label}${desc ? `<small>${desc}</small>` : ''}</span><span class="seg">${opts.map(([v, n]) => `<button class="${S.set[k] === v ? 'on' : ''}" data-act="sseg" data-k="${k}" data-v="${v}">${n}</button>`).join('')}</span></div>`;
+// Tamaño del HUD: deslizador con botones − y +
+const sHud = () => `<div class="set stack"><span>Tamaño del HUD<small>Botones, paneles y textos de la pantalla.</small></span><span class="rg hud">
+  <button class="btn br step" data-act="hudstep" data-d="-0.05" title="Más pequeño">−</button>
+  <input type="range" min="0.6" max="1.6" step="0.05" value="${S.set.ui}" data-k="ui">
+  <button class="btn br step" data-act="hudstep" data-d="0.05" title="Más grande">+</button>
+  <span class="rv" id="rv_ui">${RANGE_FMT.ui(S.set.ui)}</span></span></div>`;
 function fmtTime(sec) { sec = Math.floor(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60); return h ? `${h} h ${m} min` : `${m} min`; }
 function settingsHTML() {
   switch (setTab) {
     case 'game': return `<div class="sgrp">HUD</div>
-      ${sRange('ui', 'Tamaño del HUD', 0.6, 1.6, 0.05, 'Botones, paneles y textos de la pantalla.')}
+      ${sHud()}
       <div class="set"><span>Tarjeta de información<small>Colócala donde quieras de la pantalla.</small></span><button class="btn br" data-act="infomove">Mover</button></div>
       <div class="sgrp">Picar</div>
       ${sTog('auto', 'Auto-clic', 'Mantén pulsado sobre una veta para picar sin parar.')}
@@ -2043,7 +2053,7 @@ function settingsHTML() {
       ${sTog('hq', 'Alta resolución', 'Desactívalo si el juego va lento.')}
       ${sSeg('fps', 'Límite de FPS', [[0, 'Sin límite'], [30, '30'], [60, '60']])}`;
     case 'ui': return `<div class="sgrp">Interfaz</div>
-      ${sRange('ui', 'Tamaño del HUD', 0.6, 1.6, 0.05, 'Botones, paneles y textos de la pantalla.')}
+      ${sHud()}
       ${sSeg('infoPos', 'Tarjeta de información', [['bl', 'Abajo'], ['tl', 'Arriba'], ['custom', 'A medida'], ['off', 'Oculta']])}
       <div class="set"><span>Colocar la tarjeta a mano<small>Arrástrala a cualquier sitio de la pantalla.</small></span><button class="btn br" data-act="infomove">Mover</button></div>
       <div class="sgrp">Cámara</div>
@@ -2657,6 +2667,13 @@ document.addEventListener('click', e => {
     case 'savenow': save(); toast('Partida guardada'); break;
     case 'resume': resumeGame(); break;
     case 'infomove': startInfoMove(); break;
+    case 'hudstep': {
+      S.set.ui = clamp(Math.round((S.set.ui + +el.dataset.d) * 100) / 100, 0.6, 1.6);
+      document.querySelectorAll('input[data-k="ui"]').forEach(r => r.value = S.set.ui);
+      document.querySelectorAll('#rv_ui').forEach(r => r.textContent = RANGE_FMT.ui(S.set.ui));
+      applySettings();
+      break;
+    }
     case 'infodone': endInfoMove(); break;
     case 'inforeset': S.set.infoPos = 'bl'; applySettings(); endInfoMove(); toast('Tarjeta en su sitio original'); break;
     case 'exitmenu': {
