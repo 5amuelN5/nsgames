@@ -248,8 +248,8 @@ const MATS = {
 };
 const MAT_ORDER = ['coal', 'copper', 'iron', 'gold', 'galactium'];
 const SIZE_N = ['pequeño', 'mediano', 'grande', 'masivo'];
-// Probabilidad (%) de cada tamaño por nivel de veta; el nivel máximo solo suelta masivos
-const SPAWN = [[100, 0, 0, 0], [70, 30, 0, 0], [45, 40, 15, 0], [20, 45, 30, 5], [0, 0, 0, 100]];
+// Probabilidad (%) de cada tamaño por nivel de veta; el nivel máximo suelta mitad grandes y mitad masivos
+const SPAWN = [[100, 0, 0, 0], [70, 30, 0, 0], [45, 40, 15, 0], [10, 35, 40, 15], [0, 0, 50, 50]];
 const FUEL = [1, 2, 5, 12];
 const SMELT_TIME = 30, COMPACT_TIME = 8, SAW_TIME = 20;
 
@@ -259,7 +259,7 @@ const PICKS = [
   { n: 'Pico de cobre',    p: 4,  c: 2500,    req: 'copper' },
   { n: 'Pico de hierro',   p: 8,  c: 25000,   req: 'iron' },
   { n: 'Pico de oro',      p: 16, c: 220000,  req: 'gold' },
-  { n: 'Pico de galactium',p: 40, c: 2500000, req: 'galactium' },
+  { n: 'Pico maestro',     p: 40, c: 1200000, req: 'gold' },
 ];
 const DRILLS  = [{ p: 2, c: 0 }, { p: 4, c: 3000 }, { p: 7, c: 15000 }, { p: 12, c: 80000 }, { p: 20, c: 400000 }];
 const FUNNELS = [{ i: 8, c: 0 }, { i: 6, c: 4000 }, { i: 4, c: 20000 }, { i: 3, c: 90000 }, { i: 2, c: 350000 }];
@@ -568,6 +568,15 @@ function discover(m) {
   snd('win');
 }
 
+const veinCount = () => G.reduce((n, t) => n + (t.item && t.item.k === 'vein' ? 1 : 0), 0);
+// Motivo por el que una veta no se puede vender (o null si se puede)
+function veinSellBlock(it) {
+  if (it.k !== 'vein') return null;
+  if (it.m === 'galactium') return 'La veta de Galactium es única: no se puede vender.';
+  if (S.tut < TUT.length) return 'Termina el tutorial antes de vender vetas.';
+  if (veinCount() === 0) return 'Es tu última veta: sin ella no podrías seguir minando.';
+  return null;
+}
 function sell(it, wx, wy) {
   const v = itemValue(it);
   S.coins += v; S.stats.sold++; S.stats.earned += v;
@@ -636,6 +645,20 @@ function pushTo(x, y, it, fx, fy) {
   if (t.b) { if (bAccepts(t, it, fx, fy)) { bInsert(t, it); return true; } return false; }
   if (t.ty === 'floor' && !t.item) { t.item = it; it.ox = (fx - x) * T; it.oy = (fy - y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 110; return true; }
   return false;
+}
+// Cuenta casillas libres alcanzables (para saber si cabe lo que se va a soltar)
+function freeCount(x0, y0, limit) {
+  const seen = new Set([y0 * W + x0]), q = [[x0, y0]];
+  let n = 0;
+  while (q.length && n < limit) {
+    const [x, y] = q.shift(), t = tile(x, y);
+    if (t && t.ty === 'floor' && !t.item && !t.b) n++;
+    for (let d = 0; d < 4; d++) {
+      const nx = x + DX[d], ny = y + DY[d], nt = tile(nx, ny);
+      if (nt && (nt.ty === 'floor' || nt.ty === 'shop') && !seen.has(ny * W + nx)) { seen.add(ny * W + nx); q.push([nx, ny]); }
+    }
+  }
+  return n;
 }
 function freeNear(x0, y0) {
   const seen = new Set([y0 * W + x0]), q = [[x0, y0]];
@@ -737,7 +760,11 @@ function sellBox(t) {
   snd('coin');
   refreshInfo();
 }
-function dropOrSell(x, y, it) { if (!dropNear(x, y, it)) { S.coins += itemValue(it); } }
+function dropOrSell(x, y, it) {
+  if (dropNear(x, y, it)) return;
+  const v = itemValue(it);
+  S.coins += v; toast(`Sin sitio en la mina: ${itemName(it)} vendido por ${fmt(v)}`);
+}
 
 function doMerge(t, it, wx, wy) {
   const r = merged(it), cx = t.x * T + T / 2, cy = t.y * T + T / 2;
@@ -898,7 +925,7 @@ function tickB(t) {
       if (b.ore && b.fuel >= 4 && b.out.length < 3) {
         if (++b.prog >= SMELT_TIME) {
           b.out.push(ingot(b.ore.m)); b.ore = null; b.fuel -= 4; b.prog = 0; b.fl = 1;
-          if (!S.flags.ingot) { S.flags.ingot = true; npcSay('¡Tu primer lingote! Se han desbloqueado los planos de automatización: embudos, filtros, divisores y compactadores.', 9000); }
+          if (!S.flags.ingot) { S.flags.ingot = true; npcSay('¡Tu primer lingote! Se han desbloqueado los planos de automatización: embudos rectos y en curva, divisores y compactadores.', 9000); }
         }
       } else b.prog = 0;
       outPush(t);
@@ -956,18 +983,24 @@ function demolish(t) {
     for (let k = 0; k < got; k++) items.push(specItem(s));
   });
   if (!b.ghost) {
-    if (b.inv) items.push(...b.inv);
+    if (isBox(b) && boxCount(b)) { snd('err'); toast('Vacía o vende lo que hay dentro antes de demolerla'); return; }
     if (b.out) items.push(...b.out);
     if (b.buf) items.push(...b.buf);
     if (b.ore) items.push(b.ore);
     if (b.inp) items.push(b.inp);
     if (b.hold) items.push(b.hold);
-    if (b.type === 'crate' && b.m) { const extra = Math.max(0, b.n - 20); S.coins += extra * itemValue(b.m); for (let i = 0; i < Math.min(20, b.n); i++) items.push(clone(b.m)); }
   }
-  t.b = null;
+  // Hace falta sitio para todo lo que se devuelve
+  const saved = t.b; t.b = null;
+  const free = freeCount(t.x, t.y, items.length);
+  if (free < items.length) {
+    t.b = saved; snd('err');
+    toast(`Haz sitio: hacen falta ${items.length} casillas libres alrededor para devolver lo que tiene`);
+    return;
+  }
   S.coins += def.c;
   shake(4); puff(t.x * T + T / 2, t.y * T + T / 2, 'rgb(150,135,120)', 5, 25, 8);
-  items.forEach(it => dropOrSell(t.x, t.y, it));
+  items.forEach(it => dropNear(t.x, t.y, it));
   burst(t.x * T + T / 2, t.y * T + T / 2, '#a08a70', 12, 120);
   snd('dig');
   refreshInfo();
@@ -1404,11 +1437,12 @@ function updateHint() {
 function refreshInfo() { infoDirty = true; }
 let infoDirty = true;
 function filterHTML(b) {
+  if (b.type === 'crate' && b.flt && b.flt.length > 1) b.flt.length = 1; // partidas antiguas
   const f = b.flt || [];
   let h = `<div class="row" style="margin-top:6px"><span class="lbl">Filtro</span><span>${f.length ? f.length + (f.length === 1 ? ' tipo' : ' tipos') : '<span class="mut">Acepta todo</span>'}</span></div>`;
   if (f.length) h += '<div class="chips">' + f.map(k => `<span class="chip fchip on" data-act="ftog" data-k="${k}" title="Quitar del filtro">${itemImg(keyItem(k))}✕</span>`).join('') + '</div>';
   if (filterOpen) {
-    h += '<div class="mut" style="margin-top:6px">Elige qué objetos acepta (pulsa para marcar o desmarcar):</div><div class="fgrid">';
+    h += `<div class="mut" style="margin-top:6px">${b.type === 'crate' ? 'Elige el único tipo de objeto que guardará:' : 'Elige qué objetos acepta (pulsa para marcar o desmarcar):'}</div><div class="fgrid">`;
     filterOptions().forEach(k => { h += `<span class="fopt ${f.includes(k) ? 'on' : ''}" data-act="ftog" data-k="${k}" title="${itemName(keyItem(k))}">${itemImg(keyItem(k))}</span>`; });
     h += '</div>';
   }
@@ -1482,8 +1516,9 @@ function renderInfo() {
     if (it.k === 'vein') {
       body += `<div class="row"><span class="lbl">Dureza</span><span>${+veinHard(it).toFixed(1)}</span></div>`;
       body += `<div class="bar"><i style="width:${clamp((it.prog || 0) / veinHard(it), 0, 1) * 100}%"></i></div>`;
-      body += `<div class="${it.lvl < 5 ? 'g' : 'y'}" style="text-align:center">${it.lvl < 5 ? 'Fusiona con otra igual para subir de nivel' : 'Nivel máximo'}</div>`;
-      body += `<div class="row"><span class="lbl">Valor de venta</span><span class="y">${fmt(itemValue(it))}</span></div>`;
+      const uniq = it.m === 'galactium';
+      body += `<div class="${it.lvl < 5 && !uniq ? 'g' : 'y'}" style="text-align:center">${uniq ? 'Veta única: no se puede fusionar ni vender' : it.lvl < 5 ? 'Fusiona con otra igual para subir de nivel' : 'Nivel máximo'}</div>`;
+      if (!uniq) body += `<div class="row"><span class="lbl">Valor de venta</span><span class="y">${fmt(itemValue(it))}</span></div>`;
       body += `<div class="lbl" style="margin-top:4px">Probabilidad de aparición</div><div class="chips">`;
       SPAWN[it.lvl - 1].forEach((p, i) => { if (p) body += `<span class="chip">${itemImg(ore(it.m, i))}${p}%</span>`; });
       body += '</div>';
@@ -1612,7 +1647,7 @@ function guideHTML() {
   if (guideTab === 'basics') return `
     ${gSec(gImg(vein('coal')), 'Picar vetas', 'Haz clic en una veta para picarla. Cada veta tiene una <b>dureza</b>: cuando la llenas de golpes suelta un trozo de mineral en una de las 8 casillas de alrededor. Si no queda sitio, la veta se bloquea (aparece un <b>!</b>).')}
     ${gSec(gImg(ore('coal', 3)), 'Fusionar', 'Arrastra un trozo encima de otro <b>igual</b> para fusionarlos: pequeño → mediano → grande → <b>masivo</b>. Cada tamaño vale bastante más que dos del anterior.')}
-    ${gSec(gImg(vein('copper', 2)), 'Subir vetas de nivel', 'Dos vetas del mismo material y nivel se fusionan en una de nivel superior (máximo 5). Las vetas de nivel alto sueltan trozos más grandes y son algo más blandas. Al <b>nivel máximo (5)</b> solo sueltan trozos <b>masivos</b>.')}
+    ${gSec(gImg(vein('copper', 2)), 'Subir vetas de nivel', 'Dos vetas del mismo material y nivel se fusionan en una de nivel superior (máximo 5). Las vetas de nivel alto sueltan trozos más grandes y son algo más blandas. Al <b>nivel máximo (5)</b> sueltan mitad trozos <b>grandes</b> y mitad <b>masivos</b>. El Galactium es la excepción: solo hay una veta y no se puede subir de nivel.')}
     ${gSec('<span class="gtxt">🪙</span>', 'Vender', 'Arrastra cualquier objeto a la <b>tienda</b> del enano para venderlo. También puedes vender todo lo que hay en un cofre o caja dorada con su botón <b>Vender todo</b>.')}
     ${gSec('<span class="gtxt">⛏️</span>', 'Excavar', 'Haz clic en una roca pegada a la cueva para excavarla y ganar espacio. Cuanto más hondo, más cara. Algunas rocas esconden vetas nuevas: fíjate en los puntitos de color.')}
     ${gSec('<span class="gtxt">🛒</span>', 'La tienda', 'Se abre a la derecha y puedes seguir jugando. Compra picos más fuertes, mejoras para taladros y embudos, vetas y planos. Arrastra vetas y planos directamente al tablero.')}`;
@@ -1696,6 +1731,8 @@ function settingsHTML() {
       <span><kbd>M</kbd></span><span>Mover edificios</span>
       <span><kbd>X</kbd></span><span>Demoler</span>
       <span><kbd>J</kbd></span><span>Misiones</span>
+      <span><kbd>G</kbd></span><span>Guía</span>
+      <span><kbd>F</kbd></span><span>Voltear el embudo en curva</span>
       <span><kbd>Esc</kbd></span><span>Cancelar / abrir este menú</span>
       <span><kbd>Pellizco</kbd></span><span>Zoom en móvil (dos dedos)</span></div>`;
     case 'data': return `<div class="stats">
@@ -1767,7 +1804,7 @@ const MISSIONS = [
   { id: 'm9', n: 'Descubre hierro', r: 2000, c: () => S.disc.iron },
   { id: 'm10', n: 'Construye un horno', r: 1500, c: () => S.built.furnace > 0 },
   { id: 'm11', n: 'Funde tu primer lingote', r: 3000, c: () => S.flags.ingot },
-  { id: 'm12', n: 'Construye un embudo', r: 1500, c: () => S.built.funnel > 0 },
+  { id: 'm12', n: 'Construye un embudo (recto o en curva)', r: 1500, c: () => (S.built.funnel || 0) + (S.built.corner || 0) > 0 },
   { id: 'm13', n: 'Construye un compactador', r: 4000, c: () => S.built.compactor > 0 },
   { id: 'm14', n: 'Excava 60 casillas', r: 8000, c: () => S.stats.dug >= 60 },
   { id: 'm15', n: 'Descubre oro', r: 20000, c: () => S.disc.gold },
@@ -1776,6 +1813,11 @@ const MISSIONS = [
   { id: 'm18', n: 'Alcanza el Galactium', r: 250000, c: () => S.disc.galactium },
   { id: 'm19', n: 'Fusiona un Galactium masivo', r: 0, c: () => S.flags.galMassive },
 ];
+function rescueVein() {
+  if (S.tut < TUT.length || veinCount() > 0 || S.coins >= veinPrice('coal')) return;
+  const v = vein('coal');
+  if (dropNear(8, 1, v)) npcSay('¡Te has quedado sin vetas! Toma, te regalo una de carbón. No la vendas, ¿eh?', 8000);
+}
 function checkMissions() {
   for (const m of MISSIONS) {
     if (!S.missions[m.id] && m.c()) {
@@ -1952,7 +1994,10 @@ function dropItem(it, from, t) {
   const [wx, wy] = P.dp ? [P.dp.x, P.dp.y - 10] : toWorld(P.x, P.y);
   const back = () => returnItem(it, from, wx, wy);
   if (!t) return back();
-  if (t.ty === 'shop') { sell(it, wx, wy); burst(wx, wy, MATS[it.m].hi, 8, 110, { star: true, g: 120 }); tutCheck(); return; }
+  if (t.ty === 'shop') {
+    const why = veinSellBlock(it);
+    if (why) { snd('err'); toast(why); return back(); }
+    sell(it, wx, wy); burst(wx, wy, MATS[it.m].hi, 8, 110, { star: true, g: 120 }); tutCheck(); return; }
   if (t.b) {
     if (bAccepts(t, it)) { bInsert(t, it); if (!t.b.ghost) t.b.fl = 1; snd('land'); refreshInfo(); return; }
     snd('err'); return back();
@@ -2075,7 +2120,10 @@ document.addEventListener('click', e => {
     case 'ftog': {
       const s = sel && tile(sel.x, sel.y); if (!s || !isBox(s.b)) break;
       const f = s.b.flt || (s.b.flt = []), k = el.dataset.k, i = f.indexOf(k);
-      i >= 0 ? f.splice(i, 1) : f.push(k);
+      if (s.b.type === 'crate') {
+        if (i < 0 && s.b.m && itemKey(s.b.m) !== k) { snd('err'); toast('Vacía la caja antes de cambiar el tipo que guarda'); break; }
+        f.length = 0; if (i < 0) f.push(k); // un solo tipo
+      } else i >= 0 ? f.splice(i, 1) : f.push(k);
       s.b.fl = 0.6; refreshInfo(); break;
     }
     case 'fopen': filterOpen = !filterOpen; refreshInfo(); break;
@@ -2304,7 +2352,7 @@ function frame(now) {
   // temporizadores
   secAcc += dt; saveAcc += dt; infoAcc += dt;
   if (npcTimer > 0) { npcTimer -= dt; if (npcTimer <= 0) updateBubble(); }
-  if (secAcc >= 1) { secAcc = 0; checkMissions(); tutCheck(); if (sideKind === 'shop') renderShopButtons(); }
+  if (secAcc >= 1) { secAcc = 0; checkMissions(); tutCheck(); rescueVein(); if (sideKind === 'shop') renderShopButtons(); }
   if (saveAcc >= 10) { saveAcc = 0; save(); }
   if (infoAcc >= 0.25 || infoDirty) { infoAcc = 0; renderInfo(); }
   musicTick();
