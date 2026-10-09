@@ -160,6 +160,15 @@ body.info-moving #info *{pointer-events:none}
 #side .card .tx{min-width:150px}
 #tools{transition:right .38s cubic-bezier(.2,.9,.25,1.04)}
 body.side-open #tools{right:calc(var(--sideW) + 10px)}
+/* Atajos de teclado según lo seleccionado */
+#keys{position:fixed;right:10px;bottom:10px;z-index:4;zoom:var(--ui,1);min-width:190px;max-width:280px;padding:7px 10px 8px;border-radius:9px;
+  background:rgba(42,23,10,.82);border:2px solid #1a0d04;box-shadow:0 3px 0 rgba(0,0,0,.35);pointer-events:none;transition:right .38s cubic-bezier(.2,.9,.25,1.04),opacity .2s}
+body.side-open #keys{right:calc(var(--sideW) + 10px)}
+#keysT{font-family:'Lilita One';font-size:13px;color:#ffd65a;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#keysB{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;align-items:center;font-size:12.5px;color:#f0dfbd}
+#keysB kbd{font-family:'Lilita One';font-size:11px;background:#5c3a1e;border:1.5px solid #1a0d04;border-bottom-width:3px;border-radius:4px;padding:0 5px;white-space:nowrap;justify-self:end;color:#fff}
+#keysB .k2{justify-self:end;white-space:nowrap}
+@media (hover:none){#keys{display:none!important}}
 .card[data-drag]{cursor:grab;touch-action:pan-y}
 .card[data-drag] .ic{position:relative;touch-action:none}
 .card[data-drag] .ic::after{content:'';position:absolute;right:-4px;bottom:-4px;width:15px;height:15px;border-radius:50%;background:#c98a3e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M12 4v16M4 12h16'/%3E%3C/svg%3E") center/9px no-repeat;border:2px solid #3b2412}
@@ -254,6 +263,7 @@ kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-
 <div id="tip" class="hidden"></div>
 <div id="hint" class="panel hidden"></div>
 <div id="toasts"></div>
+<div id="keys" class="hidden"><div id="keysT"></div><div id="keysB"></div></div>
 <div id="pauseOv" class="hidden"><div class="pbox panel"><div class="ttl">En pausa</div><p>El juego se ha detenido porque has salido. Mientras está en pausa no avanza nada ni gasta recursos.</p><p class="mut">Todo sigue tal y como lo dejaste.</p><button class="btn gr" data-act="resume">Continuar</button></div></div>
 <aside id="side" class="panel" aria-label="Panel lateral"><div class="shead"><span id="sT" class="ttl"></span><button class="x" data-act="sclose" title="Cerrar (Esc)">✕</button></div><div class="tabs" id="sTabs"></div><div id="sB" class="mbody inner"></div><div id="sFoot" class="sfoot"></div></aside>
 <div id="dragChip" class="hidden"><img alt=""><span></span></div>
@@ -404,7 +414,7 @@ function newState() {
     tut: 0, disc: { coal: true }, flags: {}, built: {}, bought: {}, missions: {},
     stats: { mined: 0, merges: 0, sold: 0, dug: 0, soldMassive: 0, maxVein: 1, earned: 0, shopOpened: 0, play: 0 },
     set: {
-      auto: false, chosen: false, autoSpeed: 7, digTip: true,
+      auto: false, chosen: false, autoSpeed: 7, digTip: true, keyHints: true,
       sound: true, vol: 0.7, music: false, musicVol: 0.4,
       smooth: true, fx: 1, shake: true, floats: true, coinFly: true, grid: false, hq: true, fps: 0,
       ui: 1, infoPos: 'bl', infoX: 10, infoY: 300, camSpeed: 1, invZoom: false,
@@ -2045,6 +2055,7 @@ function settingsHTML() {
     case 'game': return `<div class="sgrp">HUD</div>
       ${sHud()}
       ${sFull()}
+      ${sTog('keyHints', 'Atajos de teclado en pantalla', 'Abajo a la derecha: las teclas que puedes usar con lo que tienes seleccionado.')}
       <div class="set"><span>Tarjeta de información<small>Colócala donde quieras de la pantalla.</small></span><button class="btn br" data-act="infomove">Mover</button></div>
       <div class="sgrp">Picar</div>
       ${sTog('auto', 'Auto-clic', 'Mantén pulsado sobre una veta para picar sin parar.')}
@@ -2072,6 +2083,7 @@ function settingsHTML() {
     case 'ui': return `<div class="sgrp">Interfaz</div>
       ${sHud()}
       ${sFull()}
+      ${sTog('keyHints', 'Atajos de teclado en pantalla', 'Abajo a la derecha: las teclas que puedes usar con lo que tienes seleccionado.')}
       ${sSeg('infoPos', 'Tarjeta de información', [['bl', 'Abajo'], ['tl', 'Arriba'], ['custom', 'A medida'], ['off', 'Oculta']])}
       <div class="set"><span>Colocar la tarjeta a mano<small>Arrástrala a cualquier sitio de la pantalla.</small></span><button class="btn br" data-act="infomove">Mover</button></div>
       <div class="sgrp">Cámara</div>
@@ -2558,6 +2570,7 @@ addEventListener('keydown', e => {
     else if (shopDrag) endShopDrag(null);
     else if (place || mode) { place = null; mode = null; }
     else if (P.mode === 'drag') cancelDrag();
+    else if (P.mode === 'gdrag') { gdrag = null; P.mode = null; P.down = false; }
     else if (multi.size) clearMulti();
     else if (lsideKind) closeLeft();
     else if (sideKind) closeSide();
@@ -2872,6 +2885,7 @@ function pauseGame() {
   save();
   if (AC && AC.state === 'running') AC.suspend();
   $('pauseOv').classList.remove('hidden');
+  updateKeys();
 }
 function resumeGame() {
   if (!paused) return;
@@ -2940,6 +2954,57 @@ function frame(now) {
   $('coins').style.transform = coinBump ? `scale(${1 + Math.sin(coinBump * Math.PI) * 0.12})` : '';
   shakeAmt *= Math.exp(-dt * 9); if (shakeAmt < 0.1) shakeAmt = 0;
   render(dt);
+  updateKeys();
+}
+// ---------- Atajos de teclado según el contexto ----------
+const kb = (...k) => k.map(x => `<kbd>${x}</kbd>`).join(' + ');
+function keyContext() {
+  if (paused) return ['En pausa', [[kb('Intro'), 'Continuar']]];
+  if (infoMove) return ['Moviendo la tarjeta', [['Arrastrar', 'Colocarla'], [kb('Esc'), 'Terminar']]];
+  if (shopDrag && shopDrag.started) {
+    const r = [['Soltar', shopDrag.kind === 'build' ? 'Colocar el plano' : 'Comprar la veta'], ['Soltar en panel', 'Cancelar']];
+    if (shopDrag.kind === 'build' && BDEF[shopDrag.val].dir) r.unshift([kb('R'), 'Girar']);
+    if (shopDrag.val === 'corner') r.splice(1, 0, [kb('F'), 'Voltear']);
+    return ['Arrastrando de la tienda', r];
+  }
+  if (place) {
+    const r = [['Clic', 'Colocar (una vez)']];
+    if (BDEF[place.type].dir) r.push([kb('R'), 'Girar']);
+    if (place.type === 'corner') r.push([kb('F'), 'Voltear']);
+    r.push([kb('Esc'), 'Cancelar'], ['Clic derecho', 'Cancelar']);
+    return ['Colocando ' + BDEF[place.type].n, r];
+  }
+  if (P.mode === 'drag' && P.drag) return ['Arrastrando ' + itemName(P.drag), [['Sobre uno igual', 'Fusionar'], ['Sobre la tienda', 'Vender'], ['Sobre una máquina', 'Meterlo'], [kb('Esc'), 'Cancelar']]];
+  if (P.mode === 'gdrag') return ['Moviendo el grupo', [['Soltar', 'Colocar todo'], [kb('Esc'), 'Cancelar']]];
+  if (P.mode === 'bdrag') return ['Moviendo máquina', [['Soltar', 'Colocarla en otra casilla']]];
+  if (multi.size > 1) return [`Selección (${multi.size})`, [['Arrastrar', 'Mover el grupo'], [kb('Mayús') + ' + clic', 'Añadir / quitar'], [kb('Mayús') + ' + arrastrar', 'Añadir un área'], [kb('Esc'), 'Quitar selección']]];
+  const t = sel && tile(sel.x, sel.y);
+  if (t && t.b) {
+    const b = t.b, def = BDEF[b.type], r = [];
+    if (def.dir) r.push([kb('R'), 'Girar'], ['Clic derecho', 'Girar']);
+    if (b.type === 'corner') r.push([kb('F'), 'Voltear']);
+    r.push(['Arrastrar', 'Mover'], [kb('Supr'), 'Demoler']);
+    if (!b.ghost && isBox(b)) r.push(['Botones', 'Filtro · Vaciar · Vender']);
+    return [def.n + (b.ghost ? ' (plano)' : ''), r];
+  }
+  if (t && t.item) {
+    const it = t.item;
+    if (it.k === 'vein') return [itemName(it), [['Clic', 'Picar'], S.set.auto ? ['Mantener', 'Picar sin parar'] : ['Clic repetido', 'Picar'], ['Arrastrar', 'Mover'], ['Sobre otra igual', 'Subir de nivel'], ['A la tienda', 'Vender']]];
+    return [itemName(it), [['Arrastrar', 'Mover'], ['Sobre uno igual', 'Fusionar'], ['A la tienda', 'Vender'], [kb('Mayús') + ' + clic', 'Seleccionar varios']]];
+  }
+  return ['General', [['Clic', 'Picar · excavar · seleccionar'], [kb('Mayús') + ' + arrastrar', 'Seleccionar un área'], [kb('W', 'A', 'S', 'D'), 'Mover la cámara'], ['Rueda', 'Zoom'], [kb('B'), 'Tienda'], [kb('J'), 'Misiones'], [kb('G'), 'Ayuda'], [kb('Esc'), 'Ajustes']]];
+}
+function updateKeys() {
+  const box = $('keys');
+  const show = S.set.keyHints && S.tut >= 8 && !modalKind;
+  box.classList.toggle('hidden', !show);
+  if (!show) return;
+  const [title, rows] = keyContext();
+  const html = title + '|' + rows.map(r => r.join('·')).join('|');
+  if (html === updateKeys.last) return;
+  updateKeys.last = html;
+  $('keysT').textContent = 'Teclas · ' + title;
+  $('keysB').innerHTML = rows.map(([k, d]) => `<span class="k2">${k.includes('<kbd>') ? k : `<kbd>${k}</kbd>`}</span><span>${d}</span>`).join('');
 }
 function renderShopButtons() {
   document.querySelectorAll('#sB [data-cost],#mB [data-cost]').forEach(b => { b.disabled = b.dataset.lock === '1' || S.coins < +b.dataset.cost; });
