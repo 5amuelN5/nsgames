@@ -234,8 +234,10 @@ kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-
 
 // ---------- Constantes del mundo ----------
 const T = 48;               // tamaño de casilla en px de mundo
-const W = 17, H = 34;       // ancho y alto de la cueva
-const SHOP_X0 = 7, SHOP_X1 = 9;
+const W = 25, H = 34;       // ancho y alto de la cueva
+const OLD_W = 17;           // ancho de las partidas guardadas antes de ensanchar el mapa
+const CX = Math.floor(W / 2);
+const SHOP_X0 = CX - 1, SHOP_X1 = CX + 1;
 const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0];
 const TICK = 100;           // ms por tick de simulación
 const SAVE_KEY = 'minemergematic_save_v1';
@@ -243,12 +245,26 @@ const SAVE_KEY = 'minemergematic_save_v1';
 const MATS = {
   coal:      { n: 'Carbón',    c: '#2f2f35', hi: '#6a6a75', o: '#0d0d10', vals: [3, 8, 20, 50],          hard: 4,  vein: 100,     ingot: 0 },
   copper:    { n: 'Cobre',     c: '#c56a2c', hi: '#f6ad6c', o: '#4d220a', vals: [12, 30, 80, 200],       hard: 8,  vein: 1500,    ingot: 520 },
+  tin:       { n: 'Estaño',    c: '#8fbfb6', hi: '#e6fffa', o: '#2b524c', vals: [25, 65, 170, 420],      hard: 11, vein: 5000,    ingot: 1000 },
   iron:      { n: 'Hierro',    c: '#8f99a5', hi: '#eef2f6', o: '#323840', vals: [40, 100, 260, 650],     hard: 15, vein: 12000,   ingot: 1700 },
+  silver:    { n: 'Plata',     c: '#d3dae4', hi: '#ffffff', o: '#566170', vals: [80, 200, 520, 1300],    hard: 20, vein: 40000,   ingot: 3300, f: true },
   gold:      { n: 'Oro',       c: '#e5b220', hi: '#fff3a6', o: '#5f4304', vals: [120, 300, 780, 2000],   hard: 26, vein: 90000,   ingot: 5200 },
+  diamond:   { n: 'Diamante',  c: '#5fdcef', hi: '#effeff', o: '#175866', vals: [300, 780, 2000, 5000],  hard: 40, vein: 400000,  ingot: 0, gem: 14000 },
   galactium: { n: 'Galactium', c: '#7b3cf0', hi: '#e8d4ff', o: '#240c52', vals: [1500, 4000, 10000, 25000], hard: 60, vein: 1000000, ingot: 0 },
+  // Aleaciones (solo existen como lingotes, se hacen en la forja)
+  bronze:    { n: 'Bronce',    c: '#c98b3c', hi: '#ffd08a', o: '#5a3510', ingot: 2300, alloy: true },
+  steel:     { n: 'Acero',     c: '#6d7d90', hi: '#d5e0ec', o: '#232d39', ingot: 2700, alloy: true },
+  electrum:  { n: 'Electro',   c: '#e6cf62', hi: '#fffbe0', o: '#6b5a12', ingot: 12500, alloy: true },
 };
-const MAT_ORDER = ['coal', 'copper', 'iron', 'gold', 'galactium'];
+const MAT_ORDER = ['coal', 'copper', 'tin', 'iron', 'silver', 'gold', 'diamond', 'galactium'];
+const ALLOYS = ['bronze', 'steel', 'electrum'];
+const ALLOY_RECIPES = [['copper', 'tin', 'bronze'], ['iron', 'coal', 'steel'], ['silver', 'gold', 'electrum']];
+const VEIN_SHOP = ['coal', 'copper', 'tin', 'iron', 'silver', 'gold', 'diamond'];
 const SIZE_N = ['pequeño', 'mediano', 'grande', 'masivo'];
+const SIZE_F = ['pequeña', 'mediana', 'grande', 'masiva'];
+const ING_N = ['Lingote de', 'Lingotes dobles de', 'Pila de lingotes de', 'Bloque de'];
+const ING_MULT = [1, 2.6, 6.6, 16.5];   // cada nivel vale más que dos del anterior
+const FORGE_TIME = 40, MINT_TIME = 20, CUT_TIME = 50;
 // Probabilidad (%) de cada tamaño por nivel de veta; el nivel máximo suelta mitad grandes y mitad masivos
 const SPAWN = [[100, 0, 0, 0], [70, 30, 0, 0], [45, 40, 15, 0], [10, 35, 40, 15], [0, 0, 50, 50]];
 const FUEL = [1, 2, 5, 12];
@@ -274,13 +290,18 @@ const BDEF = {
   funnel:    { n: 'Embudo',        d: 'Coge lo que hay detrás (suelo o máquina) y lo lleva delante. Encadénalos como una cinta.', c: 300, it: [['ore', 'iron', 2, 1]], u: 'ingot', dir: true },
   corner:    { n: 'Embudo en curva', d: 'Coge lo que le llega por un lado y lo saca girando 90°: entra por la izquierda (o la derecha) y sale por delante. R para girar, F para voltear.', c: 350, it: [['ore', 'iron', 2, 1]], u: 'ingot', dir: true },
   splitter:  { n: 'Divisor',       d: 'Coge lo que hay detrás y lo reparte alternando izquierda y derecha. Si un lado está bloqueado usa el otro.', c: 1200, it: [['ore', 'iron', 3, 1]], u: 'ingot', dir: true },
-  compactor: { n: 'Compactador',   d: 'Fusiona automáticamente parejas de minerales iguales y expulsa el resultado por delante.', c: 4000, it: [['ingot', 'iron', 0, 1], ['ingot', 'copper', 0, 2]], u: 'ingot', dir: true },
-  saw:       { n: 'Sierra',        d: 'Corta cada lingote en 4 pepitas (valen más en total).', c: 25000, it: [['ingot', 'iron', 0, 3]], u: 'gold', dir: true },
+  compactor: { n: 'Compactador',   d: 'Fusiona automáticamente parejas de minerales o lingotes iguales y expulsa el resultado por delante.', c: 4000, it: [['ingot', 'iron', 0, 1], ['ingot', 'copper', 0, 2]], u: 'ingot', dir: true },
+  saw:       { n: 'Sierra',        d: 'Corta cada lingote suelto (no dobles ni bloques) en 4 pepitas, que valen más en total.', c: 12000, it: [['ingot', 'iron', 0, 3]], u: 'gold', dir: true },
   crate:     { n: 'Caja dorada',   d: 'Almacén sin límite de un único tipo de objeto. Con un filtro eliges qué tipo guarda.', c: 20000, it: [['ingot', 'gold', 0, 1]], u: 'gold' },
+  magnet:    { n: 'Imán',          d: 'Atrae los objetos sueltos que haya a 2 casillas o menos y los deja delante (en el suelo o dentro de la máquina o caja que tenga enfrente).', c: 2500, it: [['ingot', 'iron', 0, 2]], u: 'ingot', dir: true },
+  forge:     { n: 'Forja de aleaciones', d: 'Junta dos ingredientes en una aleación que vale más: cobre + estaño = bronce, hierro + carbón masivo = acero, plata + oro = electro (lingotes sueltos). Saca la aleación por delante.', c: 8000, it: [['ingot', 'tin', 0, 2], ['ingot', 'copper', 0, 2]], u: 'tin', dir: true },
+  accel:     { n: 'Acelerador',    d: 'Con carbón como combustible, hace que las máquinas pegadas a él (arriba, abajo, izquierda y derecha) trabajen el doble de rápido.', c: 30000, it: [['ingot', 'silver', 0, 2], ['ingot', 'copper', 1, 1]], u: 'silver' },
+  mint:      { n: 'Acuñadora',     d: 'Convierte lingotes y aleaciones (de cualquier tamaño) en monedas con un 30 % extra. Tarda 2 s por lingote.', c: 45000, it: [['ingot', 'silver', 1, 1], ['ingot', 'bronze', 0, 2]], u: 'silver' },
+  cutter:    { n: 'Talladora de gemas', d: 'Talla un diamante masivo en un diamante tallado de gran valor y lo saca por delante.', c: 250000, it: [['ingot', 'steel', 0, 2], ['ingot', 'electrum', 0, 1]], u: 'diamond', dir: true },
   seller:    { n: 'Vendedor',      d: 'Un enano que vende al instante todo lo que le llega.', c: 60000, it: [['ingot', 'gold', 0, 2], ['nugget', 'iron', 0, 4]], u: 'gold' },
 };
-const BORDER = ['blocker', 'chest', 'drill', 'furnace', 'funnel', 'corner', 'splitter', 'compactor', 'saw', 'crate', 'seller'];
-const UNLOCK_TXT = { copper: 'Descubre cobre', iron: 'Descubre hierro', ingot: 'Funde un lingote', gold: 'Descubre oro' };
+const BORDER = ['blocker', 'chest', 'drill', 'furnace', 'funnel', 'corner', 'splitter', 'magnet', 'compactor', 'forge', 'saw', 'crate', 'seller', 'accel', 'mint', 'cutter'];
+const UNLOCK_TXT = { copper: 'Descubre cobre', tin: 'Descubre estaño', iron: 'Descubre hierro', ingot: 'Funde un lingote', silver: 'Descubre plata', gold: 'Descubre oro', diamond: 'Descubre diamante' };
 
 // ---------- Utilidades ----------
 const $ = id => document.getElementById(id);
@@ -309,39 +330,43 @@ function shade(hex, a) {
 
 // ---------- Objetos ----------
 const ore = (m, t) => ({ k: 'ore', m, t });
-const ingot = m => ({ k: 'ingot', m });
+const tierOf = it => it.t || 0;
+const ingot = (m, t = 0) => ({ k: 'ingot', m, t });
+const gem = m => ({ k: 'gem', m });
 const nugget = m => ({ k: 'nugget', m });
 const vein = (m, lvl = 1) => ({ k: 'vein', m, lvl, prog: 0 });
-const clone = it => { const o = { k: it.k, m: it.m }; if (it.k === 'ore') o.t = it.t; if (it.k === 'vein') { o.lvl = it.lvl; o.prog = 0; } return o; };
+const clone = it => { const o = { k: it.k, m: it.m }; if (it.k === 'ore' || it.k === 'ingot') o.t = tierOf(it); if (it.k === 'vein') { o.lvl = it.lvl; o.prog = 0; } return o; };
 
 function itemName(it) {
   const M = MATS[it.m].n;
-  if (it.k === 'ore') return M + ' ' + SIZE_N[it.t];
-  if (it.k === 'ingot') return 'Lingote de ' + M.toLowerCase();
+  if (it.k === 'ore') return M + ' ' + (MATS[it.m].f ? SIZE_F : SIZE_N)[it.t];
+  if (it.k === 'ingot') return ING_N[tierOf(it)] + ' ' + M.toLowerCase();
+  if (it.k === 'gem') return M + ' tallado';
   if (it.k === 'nugget') return 'Pepita de ' + M.toLowerCase();
   return 'Veta de ' + M.toLowerCase() + ' Nv ' + it.lvl;
 }
 function itemValue(it) {
   const M = MATS[it.m];
   if (it.k === 'ore') return M.vals[it.t];
-  if (it.k === 'ingot') return M.ingot;
+  if (it.k === 'ingot') return Math.round(M.ingot * ING_MULT[tierOf(it)]);
+  if (it.k === 'gem') return M.gem;
   if (it.k === 'nugget') return Math.round(M.ingot / 3);
   return M.vein * Math.pow(2, it.lvl - 1);
 }
 function sameKind(a, b) {
-  return a.k === b.k && a.m === b.m && (a.k !== 'ore' || a.t === b.t) && (a.k !== 'vein' || a.lvl === b.lvl);
+  return a.k === b.k && a.m === b.m && ((a.k !== 'ore' && a.k !== 'ingot') || tierOf(a) === tierOf(b)) && (a.k !== 'vein' || a.lvl === b.lvl);
 }
-function canMerge(a, b) { return sameKind(a, b) && ((a.k === 'ore' && a.t < 3) || (a.k === 'vein' && a.lvl < 5)); }
-function merged(a) { return a.k === 'ore' ? ore(a.m, a.t + 1) : vein(a.m, a.lvl + 1); }
-function matchSpec(it, s) { return it.k === s[0] && it.m === s[1] && (it.k !== 'ore' || it.t === s[2]); }
-function specItem(s) { return s[0] === 'ore' ? ore(s[1], s[2]) : s[0] === 'ingot' ? ingot(s[1]) : nugget(s[1]); }
+function canMerge(a, b) { return sameKind(a, b) && (((a.k === 'ore' || a.k === 'ingot') && tierOf(a) < 3) || (a.k === 'vein' && a.lvl < 5)); }
+function merged(a) { return a.k === 'ore' ? ore(a.m, a.t + 1) : a.k === 'ingot' ? ingot(a.m, tierOf(a) + 1) : vein(a.m, a.lvl + 1); }
+function matchSpec(it, s) { return it.k === s[0] && it.m === s[1] && ((it.k !== 'ore' && it.k !== 'ingot') || tierOf(it) === s[2]); }
+function specItem(s) { return s[0] === 'ore' ? ore(s[1], s[2]) : s[0] === 'ingot' ? ingot(s[1], s[2]) : nugget(s[1]); }
 function veinHard(v) { return MATS[v.m].hard * (1 - 0.08 * (v.lvl - 1)); }
 
 // ---------- Estado ----------
 let S, G;
 function newState() {
   return {
-    v: 1, coins: 0, pick: 0, drill: 0, funnel: 0, seed: (Math.random() * 1e9) | 0,
+    v: 2, coins: 0, pick: 0, drill: 0, funnel: 0, seed: (Math.random() * 1e9) | 0,
     tut: 0, disc: { coal: true }, flags: {}, built: {}, bought: {}, missions: {},
     stats: { mined: 0, merges: 0, sold: 0, dug: 0, soldMassive: 0, maxVein: 1, earned: 0, shopOpened: 0, play: 0 },
     set: {
@@ -360,15 +385,15 @@ function newWorld() {
   G = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
     G.push({ x, y, ty: y === 0 ? (x >= SHOP_X0 && x <= SHOP_X1 ? 'shop' : 'wall') : 'rock', item: null, b: null, hid: null });
-  for (let y = 1; y <= 3; y++) for (let x = 7; x <= 9; x++) tile(x, y).ty = 'floor';
-  tile(8, 2).item = vein('coal');
+  for (let y = 1; y <= 3; y++) for (let x = CX - 1; x <= CX + 1; x++) tile(x, y).ty = 'floor';
+  tile(CX, 2).item = vein('coal');
   // Vetas escondidas en la roca
   const rnd = mulberry(S.seed);
   const free = (x, y) => { const t = tile(x, y); return t && t.ty === 'rock' && !t.hid; };
   const put = (m, y0, y1, n, guaranteeRow) => {
     let placed = 0, tries = 0;
     if (guaranteeRow != null) {
-      const x = 4 + Math.floor(rnd() * 9);
+      const x = CX - 6 + Math.floor(rnd() * 13);
       tile(x, guaranteeRow).hid = m; placed++;
     }
     while (placed < n && tries++ < 500) {
@@ -376,12 +401,15 @@ function newWorld() {
       if (free(x, y)) { tile(x, y).hid = m; placed++; }
     }
   };
-  put('coal', 4, 9, 3, null);
-  put('copper', 5, 11, 4, 5);
-  put('iron', 11, 18, 4, 12);
-  put('gold', 19, 27, 3, 20);
-  put('coal', 12, 26, 3, null);
-  tile(3 + Math.floor(rnd() * 11), H - 2).hid = 'galactium';
+  put('coal', 4, 9, 4, null);
+  put('copper', 5, 11, 5, 5);
+  put('tin', 8, 14, 4, 9);
+  put('iron', 11, 18, 5, 12);
+  put('silver', 16, 23, 4, 17);
+  put('gold', 19, 27, 4, 20);
+  put('coal', 12, 26, 4, null);
+  put('diamond', 24, 31, 4, 27);
+  tile(CX - 7 + Math.floor(rnd() * 15), H - 2).hid = 'galactium';
 }
 
 // ---------- Guardado ----------
@@ -407,8 +435,44 @@ function load() {
     S = Object.assign(newState(), d.S);
     S.stats = Object.assign(newState().stats, d.S.stats);
     S.set = Object.assign(newState().set, d.S.set);
-    G = d.G.map((a, i) => ({ x: i % W, y: (i / W) | 0, ty: TY[a[0]], item: a[1], b: a[2], hid: a[3] }));
+    let rows = d.G, off = 0;
+    if (rows.length === OLD_W * H) { // mapa antiguo de 17 columnas: se ensancha por los dos lados
+      off = (W - OLD_W) / 2;
+      const wide = [];
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const ox = x - off;
+        wide.push(ox >= 0 && ox < OLD_W ? rows[y * OLD_W + ox] : [y === 0 ? 'w' : 'r', null, null, null]);
+      }
+      rows = wide;
+      if (S.cam) S.cam.x += off * T;
+    }
+    G = rows.map((a, i) => ({ x: i % W, y: (i / W) | 0, ty: TY[a[0]], item: a[1], b: a[2], hid: a[3] }));
+    if (off) { // vetas escondidas en las columnas nuevas
+      const rnd = mulberry(S.seed + 7);
+      [['coal', 4, 9], ['copper', 5, 11], ['tin', 8, 14], ['iron', 11, 18], ['silver', 16, 23], ['gold', 19, 27], ['coal', 12, 26], ['diamond', 24, 31]].forEach(([m, y0, y1]) => {
+        let placed = 0, tries = 0;
+        while (placed < 2 && tries++ < 300) {
+          const side = rnd() < 0.5 ? Math.floor(rnd() * off) : W - 1 - Math.floor(rnd() * off);
+          const t = G[(y0 + Math.floor(rnd() * (y1 - y0 + 1))) * W + side];
+          if (t && t.ty === 'rock' && !t.hid) { t.hid = m; placed++; }
+        }
+      });
+    }
     G.forEach(t => { if (t.b && t.b.type === 'filter') { t.b.type = 'funnel'; delete t.b.filter; } });
+    // Filtros guardados antes de que los lingotes tuvieran tamaños
+    G.forEach(t => { if (t.b && t.b.flt) t.b.flt = t.b.flt.map(k => /^ingot:[a-z]+$/.test(k) ? k + ':0' : k); });
+    // Las partidas anteriores no tenían estaño, plata ni diamante: se esconden en la roca que queda
+    if ((S.v || 1) < 2) {
+      const rnd = mulberry(S.seed + 99);
+      [['tin', 8, 14, 3], ['silver', 16, 23, 3], ['diamond', 24, 31, 3]].forEach(([m, y0, y1, n]) => {
+        let placed = 0, tries = 0;
+        while (placed < n && tries++ < 800) {
+          const t = G[(y0 + Math.floor(rnd() * (y1 - y0 + 1))) * W + Math.floor(rnd() * W)];
+          if (t && t.ty === 'rock' && !t.hid) { t.hid = m; placed++; }
+        }
+      });
+      S.v = 2;
+    }
     return G.length === W * H;
   } catch (e) { return false; }
 }
@@ -465,8 +529,9 @@ function musicTick() {
     musNext += [0.45, 0.6, 0.9][(Math.random() * 3) | 0];
   }
 }
+let offlineSim = false;
 function snd(k, p = 0) {
-  if (!S || !S.set.sound || !audio()) return;
+  if (offlineSim || !S || !S.set.sound || !audio()) return;
   const now = performance.now();
   switch (k) {
     case 'hit': if (now - lastHitSnd < 45) return; lastHitSnd = now; noise(0.06, 1800, 0.05); tone(220, 110, 0.06, 'square', 0.02); break;
@@ -489,6 +554,7 @@ let shakeAmt = 0, coinBump = 0, dispCoins = 0;
 const fxMul = () => (S ? S.set.fx : 1);
 // opt: sq (trozo cuadrado que gira), floor (rebota en el suelo), g (gravedad), up (impulso hacia arriba), star (destello)
 function burst(wx, wy, color, n = 6, sp = 90, opt = {}) {
+  if (offlineSim) return;
   n = Math.round(n * fxMul());
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, v = sp * (0.4 + Math.random()), life = (opt.life || 0.55) + Math.random() * 0.35;
@@ -504,9 +570,10 @@ function puff(wx, wy, color, n = 3, rise = 30, size = 5) {
   }
 }
 function ring(wx, wy, color, max = 40, w = 3) { if (fxMul() > 0) rings.push({ x: wx, y: wy, max, t: 0, d: 0.38, c: color, w }); }
-function floatTxt(wx, wy, txt, color = '#ffd65a', size = 18) { if (!S.set.floats) return; floats.push({ x: wx, y: wy, txt, c: color, life: 1.25, max: 1.25, size }); }
+function floatTxt(wx, wy, txt, color = '#ffd65a', size = 18) { if (offlineSim || !S.set.floats) return; floats.push({ x: wx, y: wy, txt, c: color, life: 1.25, max: 1.25, size }); }
 function shake(a) { if (S.set.shake) shakeAmt = Math.max(shakeAmt, a); }
 function coinFly(wx, wy, n) {
+  if (offlineSim) return;
   if (!S.set.coinFly) { coinBump = 1; return; }
   const [sx, sy] = toScreen(wx, wy);
   n = Math.min(n, 40 - flyers.length);
@@ -533,7 +600,7 @@ function adjFloor(t) {
   return false;
 }
 function diggable(t) { return t && t.ty === 'rock' && adjFloor(t); }
-function digCost(t) { return Math.round(12 * Math.pow(1.21, t.y) * (1 + S.stats.dug * 0.025)); }
+function digCost(t) { return Math.round(12 * Math.pow(1.21, t.y) * (1 + S.stats.dug * 0.018)); }
 
 function dig(t) {
   const c = digCost(t);
@@ -561,7 +628,10 @@ function discover(m) {
   const msgs = {
     copper: '¡Cobre! Ya puedes comprar vetas de cobre y nuevos planos: cofre y taladro.',
     iron: '¡Hierro! Ya puedes construir hornos: mételes carbón y mineral masivo para fundir lingotes.',
+    tin: '¡Estaño! Fúndelo en el horno y júntalo con cobre en la forja de aleaciones: sale bronce.',
+    silver: '¡Plata! Nuevos planos: el acelerador y la acuñadora.',
     gold: '¡Oro! Sierras, cajas doradas y... ¡un vendedor que trabaja para ti!',
+    diamond: '¡Diamantes! No se funden: fusiónalos hasta masivo y tállalos en la talladora de gemas.',
     galactium: '¡¡GALACTIUM!! Lo encontraste. Fusiona hasta conseguir un Galactium masivo.',
     coal: '',
   };
@@ -686,16 +756,17 @@ function dropNear(x0, y0, it) {
   return false;
 }
 // ---------- Filtros de las cajas ----------
-const itemKey = it => it.k === 'ore' ? `ore:${it.m}:${it.t}` : `${it.k}:${it.m}`;
-function keyItem(k) { const [kind, m, t] = k.split(':'); return kind === 'ore' ? ore(m, +t) : kind === 'ingot' ? ingot(m) : nugget(m); }
+const itemKey = it => (it.k === 'ore' || it.k === 'ingot') ? `${it.k}:${it.m}:${tierOf(it)}` : `${it.k}:${it.m}`;
+function keyItem(k) { const [kind, m, t] = k.split(':'); return kind === 'ore' ? ore(m, +t) : kind === 'ingot' ? ingot(m, +t || 0) : kind === 'gem' ? gem(m) : nugget(m); }
 const passFilter = (b, it) => !b.flt || !b.flt.length || b.flt.includes(itemKey(it));
 // Objetos que se pueden elegir como filtro (solo de materiales ya descubiertos)
 function filterOptions() {
   const out = [];
-  MAT_ORDER.forEach(m => {
+  MAT_ORDER.concat(ALLOYS).forEach(m => {
     if (!S.disc[m]) return;
-    for (let t = 0; t < 4; t++) out.push(`ore:${m}:${t}`);
-    if (MATS[m].ingot) { out.push(`ingot:${m}`); out.push(`nugget:${m}`); }
+    if (!MATS[m].alloy) for (let t = 0; t < 4; t++) out.push(`ore:${m}:${t}`);
+    if (MATS[m].ingot) { for (let t = 0; t < 4; t++) out.push(`ingot:${m}:${t}`); out.push(`nugget:${m}`); }
+    if (MATS[m].gem) out.push(`gem:${m}`);
   });
   return out;
 }
@@ -773,17 +844,19 @@ function doMerge(t, it, wx, wy) {
   if (wx !== undefined) { r.ox = (wx - cx) * 0.4; r.oy = (wy - cy) * 0.4; }
   S.stats.merges++;
   if (r.k === 'vein') S.stats.maxVein = Math.max(S.stats.maxVein, r.lvl);
-  const tier = r.k === 'ore' ? r.t : r.lvl - 1;
+  const tier = r.k === 'vein' ? r.lvl - 1 : tierOf(r);
   burst(cx, cy, MATS[r.m].hi, 10 + tier * 3, 120 + tier * 20);
   burst(cx, cy, '#ffffff', 4 + tier, 150, { star: true, g: 60, up: 20, size: 3 });
   ring(cx, cy, MATS[r.m].hi, 32 + tier * 8);
   if (r.k === 'ore' && r.t === 3) { floatTxt(cx, cy - 26, '¡MASIVO!', '#fff2a8', 22); ring(cx, cy, '#ffffff', 64, 4); shake(4); }
+  if (r.k === 'ingot' && r.t === 3) { floatTxt(cx, cy - 26, '¡BLOQUE!', '#fff2a8', 22); ring(cx, cy, '#ffffff', 64, 4); shake(5); }
   if (r.k === 'vein') { floatTxt(cx, cy - 26, '¡Nivel ' + r.lvl + '!', '#8ff08f', 22); ring(cx, cy, '#8ff08f', 70, 4); shake(5); }
   snd('merge', tier);
   checkGal(r);
   tutCheck();
 }
 function checkGal(r) {
+  if (r.k === 'ingot') { S.flags.ingotMerge = true; if (r.t === 3) S.flags.ingotBlock = true; }
   if (r.k === 'ore' && r.m === 'galactium' && r.t === 3 && !S.flags.galMassive) {
     S.flags.galMassive = true;
     setTimeout(showWin, 400);
@@ -799,6 +872,11 @@ function initB(b) {
     case 'furnace': b.fuel = 0; b.ore = null; b.prog = 0; b.out = []; break;
     case 'compactor': b.buf = []; b.prog = 0; b.out = []; break;
     case 'saw': b.inp = null; b.prog = 0; b.out = []; break;
+    case 'forge': b.in = []; b.prog = 0; b.out = []; break;
+    case 'magnet': b.t = 0; b.on = 0; break;
+    case 'accel': b.fuel = 0; b.ft = 0; b.on = 0; break;
+    case 'mint': b.inp = null; b.prog = 0; break;
+    case 'cutter': b.inp = null; b.prog = 0; b.out = []; break;
     case 'funnel': case 'corner': b.hold = null; b.t = 0; break;
     case 'splitter': b.hold = null; b.t = 0; b.side = 0; break;
   }
@@ -820,6 +898,9 @@ function finishBuild(t) {
 function inDir(b) { const d = b.dir || 0; return b.type === 'corner' ? (b.flip ? (d + 1) % 4 : (d + 3) % 4) : (d + 2) % 4; }
 function backOf(t) { const s = inDir(t.b); return tile(t.x + DX[s], t.y + DY[s]); }
 
+// Ingrediente de la forja: lingote suelto de un metal, o carbón masivo
+const forgeIng = it => (it.k === 'ingot' && tierOf(it) === 0 && !MATS[it.m].alloy) ? it.m : (it.k === 'ore' && it.m === 'coal' && it.t === 3) ? 'coal' : null;
+const forgeRecipe = (a, b) => ALLOY_RECIPES.find(r => (r[0] === a && r[1] === b) || (r[0] === b && r[1] === a));
 function bAccepts(t, it, fx, fy) {
   const b = t.b;
   if (it.k === 'vein') return false;
@@ -830,8 +911,17 @@ function bAccepts(t, it, fx, fy) {
     case 'furnace':
       if (it.k === 'ore' && it.m === 'coal') return b.fuel < 30;
       return it.k === 'ore' && it.t === 3 && MATS[it.m].ingot > 0 && !b.ore;
-    case 'compactor': return it.k === 'ore' && it.t < 3 && b.buf.length < 3;
-    case 'saw': return it.k === 'ingot' && !b.inp;
+    case 'compactor': return (it.k === 'ore' || it.k === 'ingot') && tierOf(it) < 3 && b.buf.length < 3;
+    case 'saw': return it.k === 'ingot' && tierOf(it) === 0 && !b.inp;
+    case 'forge': {
+      const g = forgeIng(it);
+      if (!g || b.in.length >= 2) return false;
+      if (!b.in.length) return ALLOY_RECIPES.some(r => r[0] === g || r[1] === g);
+      return !!forgeRecipe(forgeIng(b.in[0]), g);
+    }
+    case 'accel': return it.k === 'ore' && it.m === 'coal' && b.fuel < 30;
+    case 'mint': return it.k === 'ingot' && !b.inp;
+    case 'cutter': return it.k === 'ore' && it.m === 'diamond' && it.t === 3 && !b.inp;
     case 'seller': return true;
     case 'funnel': case 'corner': case 'splitter': {
       if (b.hold) return false;
@@ -857,12 +947,15 @@ function bInsert(t, it) {
     case 'crate': if (!b.m) b.m = clone(it); b.n++; break;
     case 'furnace': if (it.m === 'coal') b.fuel += FUEL[it.t]; else b.ore = it; break;
     case 'compactor': b.buf.push(it); break;
+    case 'forge': b.in.push(it); break;
+    case 'accel': b.fuel += FUEL[it.t]; break;
+    case 'mint': case 'cutter': b.inp = it; b.prog = 0; break;
     case 'saw': b.inp = it; b.prog = 0; break;
     case 'seller': sell(it, t.x * T + T / 2, t.y * T); b.fl = 1; break;
     case 'funnel': case 'corner': case 'splitter': b.hold = it; b.t = funnelInt(); break;
   }
 }
-const TAKEABLE = { chest: 1, crate: 1, furnace: 1, compactor: 1, saw: 1 };
+const TAKEABLE = { chest: 1, crate: 1, furnace: 1, compactor: 1, saw: 1, forge: 1, cutter: 1 };
 function bTake(t, pred) {
   const b = t.b;
   switch (b.type) {
@@ -871,7 +964,7 @@ function bTake(t, pred) {
       if (b.n > 0 && pred(b.m)) { b.n--; const o = clone(b.m); if (b.n === 0) b.m = null; return o; }
       return null;
     }
-    case 'furnace': case 'compactor': case 'saw': { const i = b.out.findIndex(pred); return i < 0 ? null : b.out.splice(i, 1)[0]; }
+    case 'furnace': case 'compactor': case 'saw': case 'forge': case 'cutter': { const i = b.out.findIndex(pred); return i < 0 ? null : b.out.splice(i, 1)[0]; }
   }
   return null;
 }
@@ -926,7 +1019,7 @@ function tickB(t) {
       if (b.ore && b.fuel >= 4 && b.out.length < 3) {
         if (++b.prog >= SMELT_TIME) {
           b.out.push(ingot(b.ore.m)); b.ore = null; b.fuel -= 4; b.prog = 0; b.fl = 1;
-          if (!S.flags.ingot) { S.flags.ingot = true; npcSay('¡Tu primer lingote! Se han desbloqueado los planos de automatización: embudos rectos y en curva, divisores y compactadores.', 9000); }
+          if (!S.flags.ingot) { S.flags.ingot = true; npcSay('¡Tu primer lingote! Se han desbloqueado los planos de automatización: embudos rectos y en curva, divisores, imanes y compactadores.', 9000); }
         }
       } else b.prog = 0;
       outPush(t);
@@ -953,6 +1046,67 @@ function tickB(t) {
           b.inp = null; b.prog = 0; b.fl = 1; S.flags.saw = true;
         }
       }
+      outPush(t);
+      break;
+    }
+    case 'forge': {
+      if (b.in.length === 2 && b.out.length < 3) {
+        if (++b.prog >= FORGE_TIME) {
+          const r = forgeRecipe(forgeIng(b.in[0]), forgeIng(b.in[1]));
+          b.out.push(ingot(r[2])); b.in = []; b.prog = 0; b.fl = 1; S.flags.alloy = true;
+          if (!S.disc[r[2]]) { S.disc[r[2]] = true; toast('¡Nueva aleación: ' + MATS[r[2]].n + '!'); }
+        }
+      } else b.prog = 0;
+      outPush(t);
+      break;
+    }
+    case 'magnet': {
+      if (b.t > 0) { b.t--; break; }
+      b.t = 5; b.on = 0;
+      const fx = x + DX[d], fy = y + DY[d], front = tile(fx, fy);
+      if (!front) break;
+      let best = null, bd = 99;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const n = tile(x + dx, y + dy);
+        if (!n || n === t || n === front || n.b || n.ty !== 'floor' || !n.item || n.item.k === 'vein') continue;
+        const dd = Math.abs(dx) + Math.abs(dy);
+        if (dd < bd) { bd = dd; best = n; }
+      }
+      if (!best) break;
+      const it = best.item;
+      const ok = front.b ? bAccepts(front, it, x, y) : (front.ty === 'floor' && !front.item);
+      if (!ok) break;
+      best.item = null;
+      pushTo(fx, fy, it, x, y);
+      if (!front.b) { it.ox = (best.x - fx) * T; it.oy = (best.y - fy) * T; it.h = 6; it.hv = 120; }
+      else burst(best.x * T + T / 2, best.y * T + T / 2, MATS[it.m].hi, 4, 60, { star: true, g: 60 });
+      b.on = 1; b.fl = 0.5;
+      break;
+    }
+    case 'accel': {
+      b.on = 0;
+      if (b.fuel > 0) {
+        b.on = 1;
+        if (++b.ft >= 50) { b.ft = 0; b.fuel--; }
+        for (let k = 0; k < 4; k++) { const n = tile(x + DX[k], y + DY[k]); if (n && n.b && !n.b.ghost && n.b.type !== 'accel') tickB(n); }
+      }
+      break;
+    }
+    case 'mint': {
+      if (b.inp && ++b.prog >= MINT_TIME) {
+        const v = Math.round(itemValue(b.inp) * 1.3);
+        S.coins += v; S.stats.earned += v; S.stats.sold++;
+        floatTxt(x * T + T / 2, y * T, '+' + fmt(v), '#ffd65a');
+        coinFly(x * T + T / 2, y * T + T / 2, 2);
+        snd('coin');
+        b.inp = null; b.prog = 0; b.fl = 1; S.flags.mint = true;
+      }
+      break;
+    }
+    case 'cutter': {
+      if (b.inp && b.out.length < 2) {
+        if (++b.prog >= CUT_TIME) { b.out.push(gem(b.inp.m)); b.inp = null; b.prog = 0; b.fl = 1; S.flags.gem = true; }
+      } else if (!b.inp) b.prog = 0;
       outPush(t);
       break;
     }
@@ -986,6 +1140,7 @@ function demolish(t) {
   if (!b.ghost) {
     if (isBox(b) && boxCount(b)) { snd('err'); toast('Vacía o vende lo que hay dentro antes de demolerla'); return; }
     if (b.out) items.push(...b.out);
+    if (b.in) items.push(...b.in);
     if (b.buf) items.push(...b.buf);
     if (b.ore) items.push(b.ore);
     if (b.inp) items.push(b.inp);
@@ -1008,7 +1163,7 @@ function demolish(t) {
 }
 
 // ---------- Cámara ----------
-const cam = { x: 8.5 * T, y: 4 * T, z: 1, tz: 1 };
+const cam = { x: (CX + 0.5) * T, y: 4 * T, z: 1, tz: 1 };
 let zoomAnchor = [0, 0];
 const camVel = { x: 0, y: 0 }, keyVel = { x: 0, y: 0 };
 let VW = 0, VH = 0, DPR = 1;
@@ -1076,13 +1231,38 @@ function drawItem(g, it, cx, cy, sc = 1, time = 0, ns = false) {
       g.restore();
     }
   } else if (it.k === 'ingot') {
-    const w = T * 0.62 * sc, h = T * 0.3 * sc;
-    if (!ns) { g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(cx, cy + h * 0.6, w * 0.55, h * 0.35, 0, 0, 7); g.fill(); }
-    g.beginPath(); g.moveTo(cx - w / 2, cy + h / 2); g.lineTo(cx + w / 2, cy + h / 2); g.lineTo(cx + w / 2 - h * 0.45, cy - h / 2); g.lineTo(cx - w / 2 + h * 0.45, cy - h / 2); g.closePath();
-    g.fillStyle = M.c; g.fill(); g.strokeStyle = M.o; g.lineWidth = 2 * sc; g.stroke();
-    g.fillStyle = M.hi; g.globalAlpha = 0.8;
-    g.fillRect(cx - w / 2 + h * 0.6, cy - h / 2 + 2 * sc, w - h * 1.2, h * 0.28);
-    g.globalAlpha = 1;
+    const tr = tierOf(it), w = T * 0.62 * sc, h = T * 0.3 * sc;
+    const bar = (x, y, bw, bh) => {
+      g.beginPath(); g.moveTo(x - bw / 2, y + bh / 2); g.lineTo(x + bw / 2, y + bh / 2); g.lineTo(x + bw / 2 - bh * 0.45, y - bh / 2); g.lineTo(x - bw / 2 + bh * 0.45, y - bh / 2); g.closePath();
+      g.fillStyle = M.c; g.fill(); g.strokeStyle = M.o; g.lineWidth = 2 * sc; g.stroke();
+      g.fillStyle = M.hi; g.globalAlpha = 0.8; g.fillRect(x - bw / 2 + bh * 0.6, y - bh / 2 + 2 * sc, bw - bh * 1.2, bh * 0.28); g.globalAlpha = 1;
+    };
+    if (!ns) { g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(cx, cy + h * (tr === 3 ? 1.1 : 0.7), w * (tr === 3 ? 0.6 : 0.55), h * 0.38, 0, 0, 7); g.fill(); }
+    if (tr === 0) bar(cx, cy, w, h);
+    else if (tr === 1) { bar(cx, cy + h * 0.4, w, h); bar(cx, cy - h * 0.5, w * 0.9, h); }
+    else if (tr === 2) { bar(cx - w * 0.3, cy + h * 0.5, w * 0.62, h * 0.9); bar(cx + w * 0.3, cy + h * 0.5, w * 0.62, h * 0.9); bar(cx, cy - h * 0.4, w * 0.62, h * 0.9); }
+    else { // bloque macizo
+      const bs = T * 0.5 * sc, top = bs * 0.32;
+      g.fillStyle = shade(M.c, -0.2); g.strokeStyle = M.o; g.lineWidth = 2 * sc;
+      g.beginPath(); g.roundRect(cx - bs / 2, cy - bs / 2 + top * 0.5, bs, bs - top * 0.5, 3 * sc); g.fill(); g.stroke();
+      g.fillStyle = M.c; g.beginPath(); g.moveTo(cx - bs / 2, cy - bs / 2 + top * 0.5); g.lineTo(cx - bs / 2 + top, cy - bs / 2 - top * 0.5); g.lineTo(cx + bs / 2 + top * 0.2, cy - bs / 2 - top * 0.5); g.lineTo(cx + bs / 2, cy - bs / 2 + top * 0.5); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = M.hi; g.globalAlpha = 0.75; g.fillRect(cx - bs / 2 + 4 * sc, cy - bs / 2 + top * 0.5 + 4 * sc, bs * 0.18, bs * 0.55); g.globalAlpha = 1;
+      g.strokeStyle = shade(M.c, -0.4); g.lineWidth = 1.5 * sc; g.strokeRect(cx - bs * 0.18, cy - bs * 0.02, bs * 0.36, bs * 0.3);
+      const s2 = (Math.sin(time * 3 + cx) + 1) / 2; g.save(); g.globalAlpha = 0.4 + s2 * 0.6; g.fillStyle = '#fff'; star(g, cx + bs * 0.38, cy - bs * 0.55, 3 + s2 * 2); g.restore();
+    }
+  } else if (it.k === 'gem') {
+    const r = T * 0.3 * sc;
+    if (!ns) { g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(cx, cy + r * 0.9, r * 0.8, r * 0.25, 0, 0, 7); g.fill(); }
+    g.save(); g.shadowColor = M.c; g.shadowBlur = 12;
+    g.beginPath(); g.moveTo(cx - r, cy - r * 0.25); g.lineTo(cx - r * 0.55, cy - r * 0.7); g.lineTo(cx + r * 0.55, cy - r * 0.7); g.lineTo(cx + r, cy - r * 0.25); g.lineTo(cx, cy + r * 0.9); g.closePath();
+    g.fillStyle = M.c; g.fill(); g.restore();
+    g.strokeStyle = M.o; g.lineWidth = 2 * sc; g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 1.2 * sc; g.beginPath();
+    g.moveTo(cx - r, cy - r * 0.25); g.lineTo(cx + r, cy - r * 0.25);
+    g.moveTo(cx - r * 0.55, cy - r * 0.7); g.lineTo(cx - r * 0.25, cy - r * 0.25); g.lineTo(cx, cy - r * 0.7); g.lineTo(cx + r * 0.25, cy - r * 0.25); g.lineTo(cx + r * 0.55, cy - r * 0.7);
+    g.moveTo(cx - r * 0.25, cy - r * 0.25); g.lineTo(cx, cy + r * 0.9); g.lineTo(cx + r * 0.25, cy - r * 0.25); g.stroke();
+    g.fillStyle = M.hi; g.globalAlpha = 0.7; g.beginPath(); g.moveTo(cx - r * 0.5, cy - r * 0.62); g.lineTo(cx - r * 0.25, cy - r * 0.3); g.lineTo(cx - r * 0.75, cy - r * 0.3); g.closePath(); g.fill(); g.globalAlpha = 1;
+    const s3 = (Math.sin(time * 4 + cx) + 1) / 2; g.save(); g.globalAlpha = 0.5 + s3 * 0.5; g.fillStyle = '#fff'; star(g, cx + r * 0.6, cy - r * 0.85, 3 + s3 * 3); g.restore();
   } else if (it.k === 'nugget') {
     const r = T * 0.1 * sc;
     [[-0.9, 0.3], [0.8, 0.4], [0, -0.6]].forEach(([dx, dy], i) => {
@@ -1257,6 +1437,24 @@ function drawBuilding(g, t, b, time, alpha = 1) {
       g.fillStyle = '#e5b220'; g.strokeStyle = '#5f4304'; g.lineWidth = 1.5; g.beginPath(); g.arc(13, 7, 6, 0, 7); g.fill(); g.stroke();
       break;
     }
+    case 'accel': {
+      rr(g, -20, -20, 40, 40, 8, '#3b4250', '#151a22', 2.5);
+      const on = !ghost && b.on;
+      g.save(); g.rotate(on ? time * 14 : 0);
+      for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.fillStyle = on ? '#9fd8ff' : '#7d8794'; g.beginPath(); g.ellipse(0, -8, 4.5, 9, 0.5, 0, 7); g.fill(); }
+      g.restore();
+      g.fillStyle = on ? '#ffd65a' : '#555'; g.beginPath(); g.moveTo(-2, -6); g.lineTo(4, -6); g.lineTo(0, 0); g.lineTo(5, 0); g.lineTo(-4, 9); g.lineTo(-1, 2); g.lineTo(-5, 2); g.closePath(); g.fill();
+      if (!ghost) { g.fillStyle = '#151a22'; g.fillRect(-15, 14, 30, 3); g.fillStyle = '#ff9a2a'; g.fillRect(-15, 14, 30 * Math.min(1, b.fuel / 30), 3); }
+      break;
+    }
+    case 'mint': {
+      rr(g, -20, -14, 40, 34, 5, '#8a6a2a', '#2c1a0b', 2.5);
+      const pr = (!ghost && b.inp) ? Math.abs(Math.sin(b.prog / MINT_TIME * Math.PI * 2)) * 6 : 0;
+      g.fillStyle = '#c3cad2'; g.strokeStyle = '#22262b'; g.lineWidth = 1.5; g.fillRect(-7, -22 + pr, 14, 10); g.strokeRect(-7, -22 + pr, 14, 10);
+      for (let i = 0; i < 3; i++) { g.fillStyle = '#e5b220'; g.strokeStyle = '#5f4304'; g.beginPath(); g.ellipse(0, 12 - i * 4, 9, 3.2, 0, 0, 7); g.fill(); g.stroke(); }
+      if (!ghost && b.inp) drawItem(g, b.inp, 0, -2, 0.45, time, true);
+      break;
+    }
   }
   if (BDEF[b.type].dir) {
     g.rotate(rot);
@@ -1284,6 +1482,37 @@ function drawBuilding(g, t, b, time, alpha = 1) {
           g.fillStyle = '#2a170a'; g.fillRect(-15, 12, 30, 4);
           g.fillStyle = '#ff9a2a'; g.fillRect(-15, 12, 30 * Math.min(1, b.fuel / 30), 4);
         }
+        break;
+      }
+      case 'magnet': {
+        rr(g, -20, -20, 40, 40, 6, '#3e3a44', '#16141a', 2.5);
+        g.strokeStyle = '#d8443a'; g.lineWidth = 9; g.lineCap = 'butt';
+        g.beginPath(); g.moveTo(-10, -10); g.lineTo(-10, 4); g.arc(0, 4, 10, Math.PI, 0, true); g.lineTo(10, -10); g.stroke();
+        g.fillStyle = '#d6dde4'; g.fillRect(-14.5, -17, 9, 7); g.fillRect(5.5, -17, 9, 7);
+        if (!ghost && b.on) { g.strokeStyle = 'rgba(160,210,255,.7)'; g.lineWidth = 1.5; const k = (time * 3) % 1; g.beginPath(); g.arc(0, -14, 6 + k * 10, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); }
+        break;
+      }
+      case 'forge': {
+        rr(g, -20, -16, 40, 36, 5, '#4f4440', '#1a1210', 2.5);
+        const act = !ghost && b.in && b.in.length === 2;
+        [[-9, -2], [9, -2]].forEach(([cx2, cy2], i) => {
+          const it = !ghost && b.in && b.in[i];
+          g.fillStyle = '#1a1210'; g.beginPath(); g.arc(cx2, cy2, 7, 0, 7); g.fill();
+          g.fillStyle = it ? MATS[it.m].c : '#33281f'; g.beginPath(); g.arc(cx2, cy2, 5, 0, 7); g.fill();
+        });
+        g.fillStyle = act ? (Math.sin(time * 14) > 0 ? '#ff9a2a' : '#ffcf4a') : '#3a2a20';
+        g.beginPath(); g.moveTo(-8, -16); g.lineTo(8, -16); g.lineTo(4, -10); g.lineTo(-4, -10); g.closePath(); g.fill();
+        if (!ghost && b.prog) { g.fillStyle = '#1a1210'; g.fillRect(-15, 13, 30, 3); g.fillStyle = '#ffb347'; g.fillRect(-15, 13, 30 * b.prog / FORGE_TIME, 3); }
+        break;
+      }
+      case 'cutter': {
+        rr(g, -20, -12, 40, 32, 5, '#34404f', '#121820', 2.5);
+        g.save(); g.translate(0, 2); g.rotate(!ghost && b.inp ? time * 6 : 0);
+        g.fillStyle = MATS.diamond.c; g.strokeStyle = MATS.diamond.o; g.lineWidth = 1.5;
+        g.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; g.lineTo(Math.cos(a) * 8, Math.sin(a) * 8); } g.closePath(); g.fill(); g.stroke();
+        g.restore();
+        g.strokeStyle = (!ghost && b.inp && Math.sin(time * 20) > 0) ? '#ff5c8a' : '#6b2a3a'; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(0, -18); g.lineTo(0, -6); g.stroke();
         break;
       }
       case 'corner': {
@@ -1370,7 +1599,7 @@ function drawBuilding(g, t, b, time, alpha = 1) {
         drawItem(g, b.hold, DX[d] * k, DY[d] * k - hop, 0.7, time);
       }
     }
-    if ((b.type === 'furnace' || b.type === 'compactor' || b.type === 'saw') && b.out.length) {
+    if ((b.type === 'furnace' || b.type === 'compactor' || b.type === 'saw' || b.type === 'forge' || b.type === 'cutter') && b.out.length) {
       drawItem(g, b.out[0], 12, 12, 0.5, time);
     }
   }
@@ -1497,6 +1726,26 @@ function renderInfo() {
         case 'saw':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Cortando</span><span>${b.inp ? itemName(b.inp) : '—'}</span></div><div class="bar"><i style="width:${b.prog / SAW_TIME * 100}%"></i></div>`;
           break;
+        case 'forge': {
+          body += `<div class="row" style="margin-top:6px"><span class="lbl">Dentro</span><span>${b.in.length}/2</span></div><div class="chips">`;
+          b.in.forEach(it => body += `<span class="chip">${itemImg(it)}</span>`);
+          body += `</div><div class="bar"><i style="width:${b.prog / FORGE_TIME * 100}%"></i></div>`;
+          body += '<div class="lbl">Recetas</div><div class="chips">' + ALLOY_RECIPES.map(r => `<span class="chip">${itemImg(r[0] === 'coal' ? ore('coal', 3) : ingot(r[0]))}+${itemImg(r[1] === 'coal' ? ore('coal', 3) : ingot(r[1]))}→${itemImg(ingot(r[2]))}</span>`).join('') + '</div>';
+          break;
+        }
+        case 'magnet':
+          body += `<div class="row" style="margin-top:6px"><span class="lbl">Radio</span><span>2 casillas</span></div><div class="row"><span class="lbl">Estado</span><span>${b.on ? '<span class="g">Atrayendo</span>' : '<span class="mut">Esperando</span>'}</span></div>`;
+          break;
+        case 'accel':
+          body += `<div class="row" style="margin-top:6px"><span class="lbl">Combustible</span><span>${b.fuel} (1 cada 5 s)</span></div><div class="row"><span class="lbl">Estado</span><span>${b.on ? '<span class="g">Acelerando ×2</span>' : '<span class="r">Sin carbón</span>'}</span></div>`;
+          break;
+        case 'mint':
+          body += `<div class="row" style="margin-top:6px"><span class="lbl">Acuñando</span><span>${b.inp ? itemName(b.inp) : '—'}</span></div>`;
+          if (b.inp) body += `<div class="bar"><i style="width:${b.prog / MINT_TIME * 100}%"></i></div><div class="row"><span class="lbl">Dará</span><span class="y">${fmt(itemValue(b.inp) * 1.3)}</span></div>`;
+          break;
+        case 'cutter':
+          body += `<div class="row" style="margin-top:6px"><span class="lbl">Tallando</span><span>${b.inp ? itemName(b.inp) : '—'}</span></div><div class="bar"><i style="width:${b.prog / CUT_TIME * 100}%"></i></div>`;
+          break;
         case 'drill':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Potencia</span><span>${DRILLS[S.drill].p}/s</span></div><div class="row"><span class="lbl">Estado</span><span>${
             b.on ? '<span class="g">Picando</span>' : b.why === 'off' ? '<span class="r">Parado</span>' : b.why === 'full' ? '<span class="y">En pausa: sin sitio</span>' : '<span class="r">Sin veta delante</span>'}</span></div>`;
@@ -1528,8 +1777,10 @@ function renderInfo() {
       body += '</div>';
       if (it.blk) body += '<div class="r" style="margin-top:4px">Bloqueada: no hay sitio libre alrededor.</div>';
     } else {
-      const max = it.k !== 'ore' || it.t === 3;
-      body += `<div class="${max ? 'y' : 'g'}" style="text-align:center">${it.k === 'ore' ? (max ? 'Tamaño máximo' : 'Fusiona con otro igual para subir de nivel') : it.k === 'ingot' ? 'Véndelo o córtalo con la sierra' : 'Material de construcción'}</div>`;
+      const mergeable = it.k === 'ore' || it.k === 'ingot', max = !mergeable || tierOf(it) === 3;
+      body += `<div class="${max ? 'y' : 'g'}" style="text-align:center">${mergeable ? (max ? 'Tamaño máximo' : 'Fusiona con otro igual para subir de nivel') : it.k === 'gem' ? 'Gema tallada: véndela bien cara' : 'Material de construcción'}</div>`;
+      if (it.k === 'ingot') body += `<div class="mut">Véndelo, acúñalo (+30 %)${tierOf(it) === 0 ? ', córtalo en la sierra' + (MATS[it.m].alloy ? '' : ' o úsalo en la forja') : ''}.</div>`;
+      if (it.k === 'ore' && it.m === 'diamond' && it.t === 3) body += '<div class="mut">Llévalo a la talladora de gemas para tallarlo.</div>';
       body += `<div class="row"><span class="lbl">Valor de venta</span><span class="y">${fmt(itemValue(it))}</span></div>`;
       if (it.k === 'ore' && it.t === 3 && MATS[it.m].ingot) body += '<div class="mut">Mételo en un horno con carbón para fundir un lingote.</div>';
       if (it.k === 'ore' && it.m === 'coal') body += `<div class="mut">Combustible para horno: ${FUEL[it.t]}</div>`;
@@ -1598,14 +1849,14 @@ function renderPanel(kind, tEl, tabs, mB) {
         nf ? buyBtn('funnel', nf.c, !S.flags.ingot) : '<span class="y">MÁX</span>');
     } else if (shopTab === 'veins') {
       h += '<div class="mut" style="margin-bottom:8px">Arrastra una veta a la casilla libre que quieras (o suéltala sobre otra igual de nivel 1 para fusionarla). Si pulsas el precio aparece junto a la tienda.</div>';
-      ['coal', 'copper', 'iron', 'gold'].forEach(m => {
+      VEIN_SHOP.forEach(m => {
         const ok = S.disc[m];
         h += card(iconURL('item', vein(m)), 'Veta de ' + MATS[m].n.toLowerCase(),
           ok ? `Dureza ${MATS[m].hard}. Suelta ${MATS[m].n.toLowerCase()}.` : 'Descúbrela excavando más hondo.',
           buyBtn('vein:' + m, veinPrice(m), !ok), !ok, ok ? 'vein:' + m : null);
       });
     } else {
-      h += '<div class="mut" style="margin-bottom:8px">Arrastra el plano al tablero (R para girarlo mientras arrastras) o pulsa el precio para colocar varios. Después entrégale los materiales arrastrándolos encima o con embudos.</div>';
+      h += '<div class="mut" style="margin-bottom:8px">Arrastra el plano al tablero (R para girarlo mientras arrastras) o pulsa el precio y haz clic en una casilla. Se coloca una estructura cada vez. Después entrégale los materiales arrastrándolos encima o con embudos.</div>';
       BORDER.forEach(k => {
         const d = BDEF[k], ok = isUnlocked(d.u);
         const mats = d.it.map(s => `<span class="chip">${itemImg(specItem(s))}x${s[3]}</span>`).join('');
@@ -1651,6 +1902,7 @@ function guideHTML() {
   if (guideTab === 'basics') return `
     ${gSec(gImg(vein('coal')), 'Picar vetas', 'Haz clic en una veta para picarla. Cada veta tiene una <b>dureza</b>: cuando la llenas de golpes suelta un trozo de mineral en una de las 8 casillas de alrededor. Si no queda sitio, la veta se bloquea (aparece un <b>!</b>).')}
     ${gSec(gImg(ore('coal', 3)), 'Fusionar', 'Arrastra un trozo encima de otro <b>igual</b> para fusionarlos: pequeño → mediano → grande → <b>masivo</b>. Cada tamaño vale bastante más que dos del anterior.')}
+    ${gSec(gImg(ingot('iron', 3)), 'Fusionar lingotes', 'Los lingotes también se fusionan: lingote → lingotes dobles → pila → <b>bloque</b>. Cada nivel vale más que dos del anterior, así que fusionar siempre compensa.')}
     ${gSec(gImg(vein('copper', 2)), 'Subir vetas de nivel', 'Dos vetas del mismo material y nivel se fusionan en una de nivel superior (máximo 5). Las vetas de nivel alto sueltan trozos más grandes y son algo más blandas. Al <b>nivel máximo (5)</b> sueltan mitad trozos <b>grandes</b> y mitad <b>masivos</b>. El Galactium es la excepción: solo hay una veta y no se puede subir de nivel.')}
     ${gSec('<span class="gtxt">🪙</span>', 'Vender', 'Arrastra cualquier objeto a la <b>tienda</b> del enano para venderlo. También puedes vender todo lo que hay en un cofre o caja dorada con su botón <b>Vender todo</b>.')}
     ${gSec('<span class="gtxt">⛏️</span>', 'Excavar', 'Haz clic en una roca pegada a la cueva para excavarla y ganar espacio. Cuanto más hondo, más cara. Algunas rocas esconden vetas nuevas: fíjate en los puntitos de color.')}
@@ -1668,7 +1920,12 @@ function guideHTML() {
     ${gSec(gB('splitter'), 'Divisor', 'Coge lo de detrás y lo reparte alternando izquierda y derecha. Si un lado no acepta el objeto, usa el otro.')}
     ${gSec(gB('compactor'), 'Compactador', 'Fusiona solo parejas de minerales iguales y saca el resultado por delante. Si se llena con 3 distintos se atasca.')}
     ${gSec(gB('saw'), 'Sierra', 'Corta cada lingote en 4 <b>pepitas</b>, que juntas valen más que el lingote.')}
-    ${gSec(gB('seller'), 'Vendedor', 'Vende al instante todo lo que le llega. Ideal al final de una cadena.')}`;
+    ${gSec(gB('seller'), 'Vendedor', 'Vende al instante todo lo que le llega. Ideal al final de una cadena.')}
+    ${gSec(gB('magnet'), 'Imán', 'Atrae los objetos sueltos que hay a 2 casillas y los deja delante. Ponle un cofre o un embudo enfrente para recoger lo que cae de las vetas.')}
+    ${gSec(gB('forge'), 'Forja de aleaciones', 'Junta dos ingredientes: <b>cobre + estaño = bronce</b>, <b>hierro + carbón masivo = acero</b>, <b>plata + oro = electro</b>. Las aleaciones valen más que sus ingredientes.')}
+    ${gSec(gB('accel'), 'Acelerador', 'Con carbón, hace que las máquinas pegadas a él trabajen al <b>doble</b> de velocidad (taladros, hornos, embudos...). Gasta 1 de combustible cada 5 s.')}
+    ${gSec(gB('mint'), 'Acuñadora', 'Convierte lingotes y aleaciones de cualquier tamaño en monedas con un <b>30 % extra</b>.')}
+    ${gSec(gB('cutter'), 'Talladora de gemas', 'Talla un <b>diamante masivo</b> en un diamante tallado, que vale casi el triple.')}`;
   if (guideTab === 'auto') return `
     ${gSec('<span class="gtxt">➡️</span>', 'Cómo se mueven las cosas', 'Las vetas sueltan mineral en las casillas de alrededor, también <b>dentro</b> de máquinas que lo acepten (cofres, hornos, compactadores...). Los embudos y curvas solo aceptan lo que les llega por su entrada.')}
     ${gSec(gB('drill') + gB('compactor'), 'Fusionar en automático', 'Rodea una veta de bloqueadores y deja un hueco con un <b>compactador</b>. Pon un taladro picando y encadena compactadores para llegar hasta masivo.')}
@@ -1679,9 +1936,12 @@ function guideHTML() {
   return `
     ${gSec(gImg(ore('coal', 2)), '1. Carbón', 'Empiezas con una veta de carbón. Vende carbón masivo y excava hacia abajo.')}
     ${gSec(gImg(ore('copper', 2)), '2. Cobre', 'Desbloquea el <b>cofre</b>, el <b>taladro</b> y las vetas de cobre en la tienda.')}
-    ${gSec(gImg(ore('iron', 2)), '3. Hierro', 'Desbloquea el <b>horno</b>. Funde tu primer lingote para desbloquear embudos, curvas, divisores y compactadores.')}
-    ${gSec(gImg(ore('gold', 2)), '4. Oro', 'Desbloquea la <b>sierra</b>, la <b>caja dorada</b> y el <b>vendedor</b>.')}
-    ${gSec(gImg(ore('galactium', 3)), '5. Galactium', 'Está en lo más hondo de la cueva. Fusiona hasta conseguir un <b>Galactium masivo</b> para completar el juego.')}
+    ${gSec(gImg(ore('tin', 2)), '3. Estaño', 'Desbloquea la <b>forja de aleaciones</b>: con cobre hace bronce.')}
+    ${gSec(gImg(ore('iron', 2)), '4. Hierro', 'Desbloquea el <b>horno</b>. Funde tu primer lingote para desbloquear embudos, curvas, divisores, imanes y compactadores.')}
+    ${gSec(gImg(ore('silver', 2)), '5. Plata', 'Desbloquea el <b>acelerador</b> y la <b>acuñadora</b>.')}
+    ${gSec(gImg(ore('gold', 2)), '6. Oro', 'Desbloquea la <b>sierra</b>, la <b>caja dorada</b> y el <b>vendedor</b>.')}
+    ${gSec(gImg(ore('diamond', 2)), '7. Diamante', 'No se funde: fusiónalo hasta masivo y llévalo a la <b>talladora de gemas</b>.')}
+    ${gSec(gImg(ore('galactium', 3)), '8. Galactium', 'Está en lo más hondo de la cueva. Fusiona hasta conseguir un <b>Galactium masivo</b> para completar el juego.')}
     <div class="mut" style="margin-top:8px">Consulta las <b>misiones</b> (J) para ganar monedas extra por el camino.</div>`;
 }
 
@@ -1789,7 +2049,7 @@ function buy(w) {
     const m = w.slice(5), c = veinPrice(m);
     if (S.coins < c) return;
     const v = vein(m);
-    if (!dropNear(8, 1, v)) { toast('No hay sitio libre en la mina'); snd('err'); return; }
+    if (!dropNear(CX, 1, v)) { toast('No hay sitio libre en la mina'); snd('err'); return; }
     S.coins -= c; S.bought[m] = (S.bought[m] || 0) + 1;
     toast('Veta de ' + MATS[m].n.toLowerCase() + ' colocada');
   }
@@ -1812,17 +2072,27 @@ const MISSIONS = [
   { id: 'm11', n: 'Funde tu primer lingote', r: 3000, c: () => S.flags.ingot },
   { id: 'm12', n: 'Construye un embudo (recto o en curva)', r: 1500, c: () => (S.built.funnel || 0) + (S.built.corner || 0) > 0 },
   { id: 'm13', n: 'Construye un compactador', r: 4000, c: () => S.built.compactor > 0 },
+  { id: 'm20', n: 'Fusiona dos lingotes', r: 2500, c: () => S.flags.ingotMerge },
+  { id: 'm21', n: 'Descubre estaño', r: 1000, c: () => S.disc.tin },
+  { id: 'm23', n: 'Construye un imán', r: 3000, c: () => S.built.magnet > 0 },
+  { id: 'm22', n: 'Forja tu primera aleación', r: 8000, c: () => S.flags.alloy },
   { id: 'm14', n: 'Excava 60 casillas', r: 8000, c: () => S.stats.dug >= 60 },
+  { id: 'm24', n: 'Descubre plata', r: 15000, c: () => S.disc.silver },
   { id: 'm15', n: 'Descubre oro', r: 20000, c: () => S.disc.gold },
+  { id: 'm25', n: 'Consigue un bloque de lingotes', r: 40000, c: () => S.flags.ingotBlock },
+  { id: 'm26', n: 'Construye un acelerador', r: 30000, c: () => S.built.accel > 0 },
+  { id: 'm29', n: 'Acuña tu primer lingote', r: 30000, c: () => S.flags.mint },
   { id: 'm16', n: 'Corta un lingote con la sierra', r: 15000, c: () => S.flags.saw },
   { id: 'm17', n: 'Contrata a un vendedor', r: 50000, c: () => S.built.seller > 0 },
+  { id: 'm27', n: 'Descubre diamante', r: 120000, c: () => S.disc.diamond },
+  { id: 'm28', n: 'Talla un diamante', r: 200000, c: () => S.flags.gem },
   { id: 'm18', n: 'Alcanza el Galactium', r: 250000, c: () => S.disc.galactium },
   { id: 'm19', n: 'Fusiona un Galactium masivo', r: 0, c: () => S.flags.galMassive },
 ];
 function rescueVein() {
   if (S.tut < TUT.length || veinCount() > 0 || S.coins >= veinPrice('coal')) return;
   const v = vein('coal');
-  if (dropNear(8, 1, v)) npcSay('¡Te has quedado sin vetas! Toma, te regalo una de carbón. No la vendas, ¿eh?', 8000);
+  if (dropNear(CX, 1, v)) npcSay('¡Te has quedado sin vetas! Toma, te regalo una de carbón. No la vendas, ¿eh?', 8000);
 }
 function checkMissions() {
   for (const m of MISSIONS) {
@@ -2125,7 +2395,10 @@ function dropItem(it, from, t) {
 function clickTile(t) {
   if (!t) return;
   if (multi.size && !multi.has(tIdx(t))) clearMulti();
-  if (place) { if (placeGhost(t, place.type, place.dir, place.flip)) { sel = { x: t.x, y: t.y }; refreshInfo(); } return; }
+  if (place) {
+    if (placeGhost(t, place.type, place.dir, place.flip)) { sel = { x: t.x, y: t.y }; refreshInfo(); place = null; updateHint(); updateTools(); }
+    return;
+  }
   if (mode === 'demolish') { if (t.b) demolish(t); return; }
   if (t.ty === 'shop') { if (S.tut >= 10) openShop(); else { sel = { x: t.x, y: t.y }; refreshInfo(); } return; }
   if (t.ty === 'rock') {
@@ -2548,6 +2821,14 @@ function render(dt) {
           burst(fx, fy, '#9a948d', 1, 70, { sq: true, size: 2, floor: fy + 10, up: 60 });
         }
         if (b.type === 'compactor' && b.fl > 0.9) puff(cx, cy + 10, 'rgb(170,170,170)', 2, 15, 4);
+        if (b.type === 'forge' && b.in && b.in.length === 2 && Math.random() < dt * 8 * fm) burst(cx, cy - 14, Math.random() < 0.5 ? '#ffb347' : '#ff7a2a', 1, 50, { g: -60, up: 40, life: 0.5, size: 1.5 });
+        if (b.type === 'mint' && b.fl > 0.95) burst(cx, cy - 6, '#ffd65a', 4, 80, { star: true, g: 140 });
+        if (b.type === 'accel' && b.on) {
+          if (Math.random() < dt * 6 * fm) burst(cx + (Math.random() - 0.5) * 20, cy + (Math.random() - 0.5) * 20, '#9fd8ff', 1, 40, { g: 0, up: 0, life: 0.4, size: 1.5 });
+          g.save(); g.globalAlpha = 0.25 + Math.sin(time * 6) * 0.1; g.strokeStyle = '#9fd8ff'; g.lineWidth = 2;
+          for (let k = 0; k < 4; k++) { const n = tile(x + DX[k], y + DY[k]); if (n && n.b && !n.b.ghost && n.b.type !== 'accel') g.strokeRect(n.x * T + 2, n.y * T + 2, T - 4, T - 4); }
+          g.restore();
+        }
       }
     }
     if (t.item) {
@@ -2653,7 +2934,7 @@ function render(dt) {
   if (st && st.arrow && !modalKind) {
     let target = null;
     if (st.arrow === 'vein') target = G.find(t => t.item && t.item.k === 'vein');
-    else if (st.arrow === 'shop') target = { x: 8, y: -0.3 };
+    else if (st.arrow === 'shop') target = { x: CX, y: -0.3 };
     else if (st.arrow === 'rock') target = G.find(t => diggable(t) && t.y >= 4) || G.find(t => diggable(t));
     if (target) {
       const ax = target.x * T + T / 2, ay = target.y * T - 6 - Math.abs(Math.sin(time * 5)) * 8;
@@ -2774,7 +3055,7 @@ function init() {
   if (!had) newWorld();
   applySettings();
   if (S.cam) { cam.x = S.cam.x; cam.y = S.cam.y; cam.z = S.cam.z; }
-  else { cam.z = clamp(Math.min(VW / (11 * T), VH / (9 * T)), 0.55, 1.6); cam.x = 8.5 * T; cam.y = 3.2 * T; }
+  else { cam.z = clamp(Math.min(VW / (11 * T), VH / (9 * T)), 0.55, 1.6); cam.x = (CX + 0.5) * T; cam.y = 3.2 * T; }
   cam.tz = cam.z;
   clampCam();
   dispCoins = S.coins;
@@ -2785,7 +3066,9 @@ function init() {
     const hasAuto = G.some(t => t.b && !t.b.ghost && t.b.type !== 'blocker' && t.b.type !== 'chest' && t.b.type !== 'crate');
     if (ticks > 600 && hasAuto) {
       const c0 = S.coins;
+      offlineSim = true;
       for (let i = 0; i < ticks; i++) tick();
+      offlineSim = false;
       parts.length = 0; floats.length = 0; rings.length = 0; flyers.length = 0;
       for (const t of G) { if (t.item) clearAnim(t.item); if (t.b) clearAnim(t.b); }
       const mins = Math.round(ticks * TICK / 60000);
