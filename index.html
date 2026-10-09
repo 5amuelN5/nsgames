@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Videojuegos</title>
+<meta name="description" content="Colección de juegos para jugar en el navegador.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#15110f;--card:#241b16;--line:#3b2a1f;--text:#fbe9c6;--mut:#c9b08a;--acc:#f5c542}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',system-ui,sans-serif;min-height:100vh;
+  background-image:radial-gradient(circle at 20% -10%,#3a2615 0,transparent 45%),radial-gradient(circle at 90% 0,#1f2a3a 0,transparent 40%)}
+header{max-width:1100px;margin:0 auto;padding:56px 20px 28px}
+h1{font-family:'Lilita One',sans-serif;font-weight:400;font-size:clamp(36px,6vw,58px);letter-spacing:.5px;line-height:1.05}
+h1 span{color:var(--acc)}
+header p{color:var(--mut);margin-top:10px;font-size:17px}
+main{max-width:1100px;margin:0 auto;padding:0 20px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:22px}
+.card{display:flex;flex-direction:column;background:var(--card);border:2px solid var(--line);border-radius:16px;overflow:hidden;
+  color:inherit;text-decoration:none;transition:transform .18s cubic-bezier(.2,1.4,.4,1),border-color .18s,box-shadow .18s}
+.card:hover{transform:translateY(-5px);border-color:var(--acc);box-shadow:0 14px 30px rgba(0,0,0,.45)}
+.thumb{position:relative;aspect-ratio:16/10;background:#0e0b09;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s}
+.card:hover .thumb img{transform:scale(1.05)}
+.ph{width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(135deg,var(--a),var(--b))}
+.ph span{font-family:'Lilita One';font-size:84px;color:rgba(255,255,255,.9);text-shadow:0 5px 0 rgba(0,0,0,.25)}
+.play{position:absolute;right:12px;bottom:12px;background:var(--acc);color:#3b2412;font-family:'Lilita One';font-size:16px;
+  padding:7px 15px;border-radius:999px;box-shadow:0 4px 0 #a07a10;opacity:0;transform:translateY(6px);transition:.18s}
+.card:hover .play,.card:focus-visible .play{opacity:1;transform:none}
+.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:6px;flex:1}
+h2{font-family:'Lilita One',sans-serif;font-weight:400;font-size:24px}
+.body p{color:var(--mut);font-size:15px;line-height:1.45}
+time{margin-top:auto;padding-top:8px;color:#8f7a5c;font-size:13px}
+footer{text-align:center;color:#6f5e48;font-size:13px;padding:0 20px 34px}
+@media (hover:none){.play{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mis <span>videojuegos</span></h1>
+  <p>2 juegos para jugar directamente en el navegador.</p>
+</header>
+<main>
+    <a class="card" href="minemergematic/">
+      <div class="thumb"><img src="minemergematic/preview.jpg" alt="" loading="lazy"><span class="play">▶ Jugar</span></div>
+      <div class="body">
+        <h2>MineMergeMatic</h2>
+        <p>Mina, fusiona y automatiza tu cueva hasta encontrar el Galactium.</p>
+        <time>Actualizado el 9 de octubre de 2026</time>
+      </div>
+    </a>
+    <a class="card" href="bills-must-be-paid/">
+      <div class="thumb"><img src="bills-must-be-paid/preview.jpg" alt="" loading="lazy"><span class="play">▶ Jugar</span></div>
+      <div class="body">
+        <h2>Bills Must Be Paid</h2>
+        <p>Rompe cerditos hucha a golpes para pagar todas tus facturas.</p>
+        <time>Actualizado el 9 de octubre de 2026</time>
+      </div>
+    </a>
+</main>
+<footer>Se actualiza automáticamente · última novedad el 9 de octubre de 2026</footer>
+</body>
+</html>
