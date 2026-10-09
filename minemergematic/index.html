@@ -343,6 +343,7 @@ const FUNNELS = [{ i: 8, c: 0 }, { i: 6, c: 4000 }, { i: 4, c: 20000 }, { i: 3, 
 // Edificios: c = monedas, it = [tipo, material, tamaño, cantidad] que hay que entregar al plano
 const BDEF = {
   blocker:   { n: 'Bloqueador',    d: 'Ocupa una casilla: las vetas no sueltan mineral aquí. Úsalo para dirigir la producción.', c: 25, it: [], u: null },
+  tnt:       { n: 'Dinamita',      d: 'Ponla junto a la roca: a los 2 s explota y excava las 8 casillas de alrededor con un 25 % de descuento. Se gasta al explotar.', c: 150, it: [], u: 'copper' },
   chest:     { n: 'Cofre',         d: 'Guarda hasta 12 objetos. Los embudos pueden meter y sacar de él. Con un filtro solo acepta los objetos elegidos.', c: 150, it: [['ore', 'copper', 2, 2]], u: 'copper' },
   drill:     { n: 'Taladro',       d: 'Pica automáticamente la veta que tiene delante. Se para solo si la veta no tiene sitio donde soltar el mineral y vuelve a arrancar cuando lo hay.', c: 400, it: [['ore', 'coal', 3, 2], ['ore', 'copper', 3, 1]], u: 'copper', dir: true },
   furnace:   { n: 'Horno',         d: 'Funde mineral masivo (cobre, hierro u oro) usando carbón como combustible. Expulsa lingotes por delante.', c: 1500, it: [['ore', 'copper', 3, 2], ['ore', 'coal', 3, 3]], u: 'iron', dir: true },
@@ -350,16 +351,16 @@ const BDEF = {
   corner:    { n: 'Embudo en curva', d: 'Coge lo que le llega por un lado y lo saca girando 90°: entra por la izquierda (o la derecha) y sale por delante. R para girar, F para voltear.', c: 350, it: [['ore', 'iron', 2, 1]], u: 'ingot', dir: true },
   splitter:  { n: 'Divisor',       d: 'Coge lo que hay detrás y lo reparte alternando izquierda y derecha. Si un lado está bloqueado usa el otro.', c: 1200, it: [['ore', 'iron', 3, 1]], u: 'ingot', dir: true },
   compactor: { n: 'Compactador',   d: 'Fusiona automáticamente parejas de minerales o lingotes iguales y expulsa el resultado por delante.', c: 4000, it: [['ingot', 'iron', 0, 1], ['ingot', 'copper', 0, 2]], u: 'ingot', dir: true },
-  saw:       { n: 'Sierra',        d: 'Corta cada lingote suelto (no dobles ni bloques) en 4 pepitas, que valen más en total.', c: 12000, it: [['ingot', 'iron', 0, 3]], u: 'gold', dir: true },
-  crate:     { n: 'Caja dorada',   d: 'Almacén sin límite de un único tipo de objeto. Con un filtro eliges qué tipo guarda.', c: 20000, it: [['ingot', 'gold', 0, 1]], u: 'gold' },
+  saw:       { n: 'Sierra',        d: 'Corta cada lingote suelto (no dobles ni bloques) en 4 pepitas, que valen más en total.', c: 5000, it: [['ingot', 'iron', 0, 2]], u: 'ingot', dir: true },
+  crate:     { n: 'Caja dorada',   d: 'Almacén sin límite de un único tipo de objeto. Con un filtro eliges qué tipo guarda.', c: 15000, it: [['ingot', 'gold', 0, 1]], u: 'gold'},
   magnet:    { n: 'Imán',          d: 'Atrae los objetos sueltos que haya a 2 casillas o menos y los deja delante (en el suelo o dentro de la máquina o caja que tenga enfrente).', c: 2500, it: [['ingot', 'iron', 0, 2]], u: 'ingot', dir: true },
   forge:     { n: 'Forja de aleaciones', d: 'Junta dos ingredientes en una aleación que vale más: cobre + estaño = bronce, hierro + carbón masivo = acero, plata + oro = electro (lingotes sueltos). Saca la aleación por delante.', c: 8000, it: [['ingot', 'tin', 0, 2], ['ingot', 'copper', 0, 2]], u: 'tin', dir: true },
   accel:     { n: 'Acelerador',    d: 'Con carbón como combustible, hace que las máquinas pegadas a él (arriba, abajo, izquierda y derecha) trabajen el doble de rápido.', c: 30000, it: [['ingot', 'silver', 0, 2], ['ingot', 'copper', 1, 1]], u: 'silver' },
   mint:      { n: 'Acuñadora',     d: 'Convierte lingotes y aleaciones (de cualquier tamaño) en monedas con un 30 % extra. Tarda 2 s por lingote.', c: 45000, it: [['ingot', 'silver', 1, 1], ['ingot', 'bronze', 0, 2]], u: 'silver' },
   cutter:    { n: 'Talladora de gemas', d: 'Talla un diamante masivo en un diamante tallado de gran valor y lo saca por delante.', c: 250000, it: [['ingot', 'steel', 0, 2], ['ingot', 'electrum', 0, 1]], u: 'diamond', dir: true },
-  seller:    { n: 'Vendedor',      d: 'Un enano que vende al instante todo lo que le llega.', c: 60000, it: [['ingot', 'gold', 0, 2], ['nugget', 'iron', 0, 4]], u: 'gold' },
+  seller:    { n: 'Vendedor',      d: 'Un enano que vende al instante todo lo que le llega.', c: 6000, it: [['ingot', 'iron', 0, 2], ['ore', 'copper', 3, 2]], u: 'ingot'},
 };
-const BORDER = ['blocker', 'chest', 'drill', 'furnace', 'funnel', 'corner', 'splitter', 'magnet', 'compactor', 'forge', 'saw', 'crate', 'seller', 'accel', 'mint', 'cutter'];
+const BORDER = ['blocker', 'tnt', 'chest', 'drill', 'furnace', 'funnel', 'corner', 'splitter', 'magnet', 'compactor', 'forge', 'saw', 'crate', 'seller', 'accel', 'mint', 'cutter'];
 const UNLOCK_TXT = { copper: 'Descubre cobre', tin: 'Descubre estaño', iron: 'Descubre hierro', ingot: 'Funde un lingote', silver: 'Descubre plata', gold: 'Descubre oro', diamond: 'Descubre diamante' };
 
 // ---------- Utilidades ----------
@@ -425,7 +426,7 @@ function veinHard(v) { return MATS[v.m].hard * (1 - 0.08 * (v.lvl - 1)); }
 let S, G;
 function newState() {
   return {
-    v: 2, coins: 0, pick: 0, drill: 0, funnel: 0, seed: (Math.random() * 1e9) | 0,
+    v: 3, coins: 0, pick: 0, drill: 0, funnel: 0, seed: (Math.random() * 1e9) | 0,
     tut: 0, disc: { coal: true }, flags: {}, built: {}, bought: {}, missions: {},
     stats: { mined: 0, merges: 0, sold: 0, dug: 0, soldMassive: 0, maxVein: 1, earned: 0, shopOpened: 0, play: 0 },
     set: {
@@ -468,6 +469,7 @@ function newWorld() {
   put('gold', 19, 27, 4, 20);
   put('coal', 12, 26, 4, null);
   put('diamond', 24, 31, 4, 27);
+  put('treasure', 4, 31, 10, null);
   tile(CX - 7 + Math.floor(rnd() * 15), H - 2).hid = 'galactium';
 }
 
@@ -531,6 +533,15 @@ function load() {
         }
       });
       S.v = 2;
+    }
+    if ((S.v || 1) < 3) { // tesoros para partidas anteriores
+      const rnd = mulberry(S.seed + 313);
+      let placed = 0, tries = 0;
+      while (placed < 10 && tries++ < 1500) {
+        const t = G[(4 + Math.floor(rnd() * 28)) * W + Math.floor(rnd() * W)];
+        if (t && t.ty === 'rock' && !t.hid) { t.hid = 'treasure'; placed++; }
+      }
+      S.v = 3;
     }
     return G.length === W * H;
   } catch (e) { return false; }
@@ -600,6 +611,8 @@ function snd(k, p = 0) {
     case 'land': tone(160, 90, 0.05, 'sine', 0.03); break;
     case 'coin': tone(988, 988, 0.07, 'square', 0.025); tone(1319, 1319, 0.16, 'square', 0.025, 0.07); break;
     case 'dig': noise(0.25, 500, 0.12); tone(120, 50, 0.2, 'sine', 0.06); break;
+    case 'boom': noise(0.6, 380, 0.25); tone(90, 30, 0.6, 'sine', 0.12); tone(60, 25, 0.8, 'triangle', 0.06, 0.05); break;
+    case 'treasure': [784, 988, 1175, 1568].forEach((f, i) => tone(f, f, 0.18, 'triangle', 0.05, i * 0.07)); break;
     case 'build': tone(392, 392, 0.1, 'triangle', 0.05); tone(523, 523, 0.1, 'triangle', 0.05, 0.08); tone(659, 659, 0.18, 'triangle', 0.05, 0.16); break;
     case 'err': tone(150, 110, 0.15, 'sawtooth', 0.03); break;
     case 'click': tone(700, 500, 0.04, 'triangle', 0.03); break;
@@ -661,9 +674,9 @@ function adjFloor(t) {
 function diggable(t) { return t && t.ty === 'rock' && adjFloor(t); }
 function digCost(t) { return Math.round(12 * Math.pow(1.21, t.y) * (1 + S.stats.dug * 0.018)); }
 
-function dig(t) {
-  const c = digCost(t);
-  if (S.coins < c) { snd('err'); toast('Necesitas ' + fmt(c) + ' monedas para excavar aquí'); return; }
+function dig(t, mult = 1, quiet = false) {
+  const c = Math.round(digCost(t) * mult);
+  if (S.coins < c) { if (!quiet) { snd('err'); toast('Necesitas ' + fmt(c) + ' monedas para excavar aquí'); } return false; }
   S.coins -= c; S.stats.dug++;
   t.ty = 'floor';
   const cx = t.x * T + T / 2, cy = t.y * T + T / 2, rc = rockColors(t.y)[(hash(t.x, t.y) * 4) | 0];
@@ -673,6 +686,7 @@ function dig(t) {
   ring(cx, cy, '#d9c7a8', 46);
   t.reveal = 1; shake(7);
   snd('dig');
+  if (t.hid === 'treasure') { t.hid = null; openTreasure(t); }
   if (t.hid) {
     t.item = vein(t.hid); t.item.pop = 1; t.item.h = 1; t.item.hv = 260;
     ring(cx, cy, MATS[t.hid].hi, 70, 4);
@@ -680,6 +694,41 @@ function dig(t) {
     t.hid = null;
   }
   tutCheck();
+  return true;
+}
+// Tesoro: monedas según la profundidad y, a veces, un objeto valioso del nivel
+function openTreasure(t) {
+  const cx = t.x * T + T / 2, cy = t.y * T + T / 2;
+  const coins = Math.round(70 * Math.pow(1.2, t.y) * (1.5 + Math.random() * 1.5));
+  S.coins += coins; S.stats.earned += coins; S.flags.treasure = true;
+  floatTxt(cx, cy - 24, '¡Tesoro! +' + fmt(coins), '#fff2a8', 22);
+  coinFly(cx, cy, 10);
+  burst(cx, cy, '#ffd65a', 24, 200, { star: true, g: 120 }); ring(cx, cy, '#ffd65a', 80, 5);
+  snd('treasure');
+  if (Math.random() < 0.4) { // regalo: lingote doble del metal típico de esa profundidad
+    const m = t.y < 9 ? 'copper' : t.y < 14 ? 'tin' : t.y < 18 ? 'iron' : t.y < 22 ? 'silver' : 'gold';
+    const it = ingot(m, 1); t.item = it; it.pop = 1; it.h = 1; it.hv = 260;
+    toast('El tesoro tenía además: ' + itemName(it));
+  }
+}
+// La dinamita excava las 8 rocas de alrededor pagando un 75 % de su precio
+function explode(t) {
+  t.b = null;
+  const cx = t.x * T + T / 2, cy = t.y * T + T / 2;
+  let dug = 0, short = 0;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const n = tile(t.x + dx, t.y + dy);
+    if (!n || n === t || n.ty !== 'rock') continue;
+    if (dig(n, 0.75, true)) dug++; else short++;
+  }
+  burst(cx, cy, '#ffb347', 26, 260, { g: 200, life: 0.7, size: 3 });
+  burst(cx, cy, '#ff5c2a', 14, 200, { star: true, g: 100 });
+  puff(cx, cy, 'rgb(90,80,75)', 10, 40, 12);
+  ring(cx, cy, '#ffd65a', 110, 6); ring(cx, cy, '#ffffff', 70, 3);
+  shake(14); snd('boom');
+  S.flags.tnt = true;
+  if (short) toast(`Faltaron monedas para ${short} roca${short > 1 ? 's' : ''}`);
+  else if (!dug) toast('La dinamita no tenía roca alrededor');
 }
 function discover(m) {
   if (S.disc[m]) return;
@@ -689,7 +738,7 @@ function discover(m) {
     iron: '¡Hierro! Ya puedes construir hornos: mételes carbón y mineral masivo para fundir lingotes.',
     tin: '¡Estaño! Fúndelo en el horno y júntalo con cobre en la forja de aleaciones: sale bronce.',
     silver: '¡Plata! Nuevos planos: el acelerador y la acuñadora.',
-    gold: '¡Oro! Sierras, cajas doradas y... ¡un vendedor que trabaja para ti!',
+    gold: '¡Oro! Ya puedes construir cajas doradas y comprar el pico maestro.',
     diamond: '¡Diamantes! No se funden: fusiónalos hasta masivo y tállalos en la talladora de gemas.',
     galactium: '¡¡GALACTIUM!! Lo encontraste. Fusiona hasta conseguir un Galactium masivo.',
     coal: '',
@@ -939,6 +988,7 @@ function initB(b) {
     case 'saw': b.inp = null; b.prog = 0; b.out = []; break;
     case 'forge': b.in = []; b.prog = 0; b.out = []; break;
     case 'magnet': b.t = 0; b.on = 0; break;
+    case 'tnt': b.t = 20; break;
     case 'accel': b.fuel = 0; b.ft = 0; b.on = 0; break;
     case 'mint': b.inp = null; b.prog = 0; break;
     case 'cutter': b.inp = null; b.prog = 0; b.out = []; break;
@@ -1084,7 +1134,7 @@ function tickB(t) {
       if (b.ore && b.fuel >= 4 && b.out.length < 3) {
         if (++b.prog >= SMELT_TIME) {
           b.out.push(ingot(b.ore.m)); b.ore = null; b.fuel -= 4; b.prog = 0; b.fl = 1;
-          if (!S.flags.ingot) { S.flags.ingot = true; npcSay('¡Tu primer lingote! Se han desbloqueado los planos de automatización: embudos rectos y en curva, divisores, imanes y compactadores.', 9000); }
+          if (!S.flags.ingot) { S.flags.ingot = true; npcSay('¡Tu primer lingote! Se han desbloqueado los planos de automatización: embudos rectos y en curva, divisores, imanes, compactadores, sierras y vendedores.', 9000); }
         }
       } else b.prog = 0;
       outPush(t);
@@ -1123,6 +1173,10 @@ function tickB(t) {
         }
       } else b.prog = 0;
       outPush(t);
+      break;
+    }
+    case 'tnt': {
+      if (--b.t <= 0) explode(t);
       break;
     }
     case 'magnet': {
@@ -1410,7 +1464,11 @@ function drawTileBase(g, t, time) {
     g.fillStyle = shade(c, -0.25); g.fillRect(x + 4, y + T - 9, T - 8, 5);
     g.fillStyle = shade(c, -0.18);
     for (let i = 0; i < 4; i++) g.fillRect(x + 6 + hash(t.x, t.y, i + 9) * (T - 14), y + 14 + hash(t.x, t.y, i + 3) * (T - 26), 3, 3);
-    if (t.hid) { // pista de mineral en la roca
+    if (t.hid === 'treasure') { // destello de tesoro
+      const s2 = (Math.sin(time * 2.5 + t.x * 1.7 + t.y) + 1) / 2;
+      g.save(); g.globalAlpha = 0.35 + s2 * 0.5; g.fillStyle = '#ffe58a';
+      star(g, x + 14 + hash(t.x, t.y, 41) * 18, y + 16 + hash(t.x, t.y, 42) * 14, 2.5 + s2 * 3); g.restore();
+    } else if (t.hid) { // pista de mineral en la roca
       const M = MATS[t.hid];
       for (let i = 0; i < 3; i++) {
         g.fillStyle = M.c; g.strokeStyle = M.o; g.lineWidth = 1;
@@ -1500,6 +1558,14 @@ function drawBuilding(g, t, b, time, alpha = 1) {
       g.fillStyle = '#3a7bd5'; g.beginPath(); g.arc(-2, -11 + bob, 10.5, Math.PI, 0); g.fill();
       g.fillStyle = '#1b1b1b'; g.fillRect(-6, -8 + bob, 2.5, 2.5); g.fillRect(1, -8 + bob, 2.5, 2.5);
       g.fillStyle = '#e5b220'; g.strokeStyle = '#5f4304'; g.lineWidth = 1.5; g.beginPath(); g.arc(13, 7, 6, 0, 7); g.fill(); g.stroke();
+      break;
+    }
+    case 'tnt': {
+      const left = ghost ? 20 : b.t, blink = !ghost && Math.sin(time * (8 + (20 - left) * 1.5)) > 0;
+      for (let i = -1; i <= 1; i++) { rr(g, i * 9 - 4, -12, 8, 28, 3, blink && left < 8 ? '#ff7a5a' : '#d8443a', '#4a1010', 2); }
+      g.fillStyle = '#3a2a20'; g.fillRect(-15, -2, 30, 5);
+      g.strokeStyle = '#2b2b2b'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, -12); g.quadraticCurveTo(6, -20, 12, -18); g.stroke();
+      if (!ghost) { g.fillStyle = Math.random() < 0.5 ? '#ffd65a' : '#ff9a2a'; g.beginPath(); g.arc(12, -18, 2.5 + Math.random() * 2, 0, 7); g.fill(); }
       break;
     }
     case 'accel': {
@@ -1867,7 +1933,8 @@ function renderInfo() {
     title = 'Roca';
     body += `<div class="row"><span class="lbl">Profundidad</span><span>${t.y} m</span></div>`;
     body += diggable(t) ? `<div class="row"><span class="lbl">Excavar</span><span class="${S.coins >= digCost(t) ? 'y' : 'r'}">${fmt(digCost(t))} monedas</span></div>` : '<div class="mut">Excava primero las rocas de alrededor.</div>';
-    if (t.hid) body += `<div class="mut">Se ve algo de ${MATS[t.hid].n.toLowerCase()} dentro...</div>`;
+    if (t.hid === 'treasure') body += '<div class="mut">Algo brilla dentro... ¿un tesoro?</div>';
+    else if (t.hid) body += `<div class="mut">Se ve algo de ${MATS[t.hid].n.toLowerCase()} dentro...</div>`;
   } else if (t.ty === 'shop') {
     title = 'Tienda'; body = '<div class="mut">Suelta aquí objetos para venderlos. Haz clic para comprar mejoras, vetas y planos.</div>';
   } else return hideInfo();
@@ -1997,11 +2064,12 @@ function guideHTML() {
     ${gSec(gImg(ingot('iron', 3)), 'Fusionar lingotes', 'Los lingotes también se fusionan: lingote → lingotes dobles → pila → <b>bloque</b>. Cada nivel vale más que dos del anterior, así que fusionar siempre compensa.')}
     ${gSec(gImg(vein('copper', 2)), 'Subir vetas de nivel', 'Dos vetas del mismo material y nivel se fusionan en una de nivel superior (máximo 5). Las vetas de nivel alto sueltan trozos más grandes y son algo más blandas. Al <b>nivel máximo (5)</b> sueltan mitad trozos <b>grandes</b> y mitad <b>masivos</b>. El Galactium es la excepción: solo hay una veta y no se puede subir de nivel.')}
     ${gSec('<span class="gtxt">🪙</span>', 'Vender', 'Arrastra cualquier objeto a la <b>tienda</b> del enano para venderlo. También puedes vender todo lo que hay en un cofre o caja dorada con su botón <b>Vender todo</b>.')}
-    ${gSec('<span class="gtxt">⛏️</span>', 'Excavar', 'Haz clic en una roca pegada a la cueva para excavarla y ganar espacio. Cuanto más hondo, más cara. Algunas rocas esconden vetas nuevas: fíjate en los puntitos de color.')}
+    ${gSec('<span class="gtxt">⛏️</span>', 'Excavar', 'Haz clic en una roca pegada a la cueva para excavarla y ganar espacio. Cuanto más hondo, más cara. Algunas rocas esconden vetas nuevas (puntitos de color) y otras <b>tesoros</b> (un destello dorado). La <b>dinamita</b> excava 8 rocas de golpe y más barato.')}
     ${gSec('<span class="gtxt">⬚</span>', 'Mover varias cosas a la vez', 'Mantén <b>Mayús</b> y arrastra por el tablero para marcar un área (en móvil: mantén pulsado medio segundo en el suelo y arrastra). Mayús + clic añade o quita casillas. Luego arrastra cualquiera de lo marcado y se moverá todo el grupo, máquinas incluidas.')}
     ${gSec('<span class="gtxt">🛒</span>', 'La tienda', 'Se abre a la derecha y puedes seguir jugando. Compra picos más fuertes, mejoras para taladros y embudos, vetas y planos. Arrastra vetas y planos directamente al tablero.')}`;
   if (guideTab === 'machines') return `
     <div class="mut" style="margin-bottom:8px">Los planos se pagan al colocarlos y luego hay que <b>entregarles materiales</b> (arrastrándolos encima o con embudos). R gira las máquinas. Para moverlas, haz clic en una y arrástrala; para demolerla, llévala a la tienda o pulsa Supr.</div>
+    ${gSec(gB('tnt'), 'Dinamita', 'Ponla junto a la roca: a los 2 s explota y excava las 8 casillas de alrededor pagando solo el <b>75 %</b>. Se gasta al usarla.')}
     ${gSec(gB('blocker'), 'Bloqueador', 'Ocupa una casilla para que las vetas no suelten mineral ahí. Sirve para dirigir hacia dónde cae.')}
     ${gSec(gB('chest'), 'Cofre', 'Guarda 12 objetos. Con <b>Filtro</b> eliges qué acepta: así puedes clasificar. Cada clic en el cofre suelta un objeto a su alrededor, y tiene botón de <b>vender todo</b>.')}
     ${gSec(gB('crate'), 'Caja dorada', 'Guarda una cantidad ilimitada de un solo tipo de objeto. Con el filtro decides qué tipo.')}
@@ -2027,11 +2095,11 @@ function guideHTML() {
     ${gSec('<span class="gtxt">💤</span>', 'Mientras no juegas', 'Nada avanza si no estás jugando: al salir de la pestaña el juego se pausa hasta que pulses <b>Continuar</b>, y al cerrarlo se queda exactamente como estaba. La partida se guarda sola.')}`;
   return `
     ${gSec(gImg(ore('coal', 2)), '1. Carbón', 'Empiezas con una veta de carbón. Vende carbón masivo y excava hacia abajo.')}
-    ${gSec(gImg(ore('copper', 2)), '2. Cobre', 'Desbloquea el <b>cofre</b>, el <b>taladro</b> y las vetas de cobre en la tienda.')}
+    ${gSec(gImg(ore('copper', 2)), '2. Cobre', 'Desbloquea el <b>cofre</b>, el <b>taladro</b>, la <b>dinamita</b> y las vetas de cobre en la tienda.')}
     ${gSec(gImg(ore('tin', 2)), '3. Estaño', 'Desbloquea la <b>forja de aleaciones</b>: con cobre hace bronce.')}
-    ${gSec(gImg(ore('iron', 2)), '4. Hierro', 'Desbloquea el <b>horno</b>. Funde tu primer lingote para desbloquear embudos, curvas, divisores, imanes y compactadores.')}
+    ${gSec(gImg(ore('iron', 2)), '4. Hierro', 'Desbloquea el <b>horno</b>. Funde tu primer lingote para desbloquear embudos, curvas, divisores, imanes, compactadores, la sierra y el vendedor.')}
     ${gSec(gImg(ore('silver', 2)), '5. Plata', 'Desbloquea el <b>acelerador</b> y la <b>acuñadora</b>.')}
-    ${gSec(gImg(ore('gold', 2)), '6. Oro', 'Desbloquea la <b>sierra</b>, la <b>caja dorada</b> y el <b>vendedor</b>.')}
+    ${gSec(gImg(ore('gold', 2)), '6. Oro', 'Desbloquea la <b>caja dorada</b> y el <b>pico maestro</b>.')}
     ${gSec(gImg(ore('diamond', 2)), '7. Diamante', 'No se funde: fusiónalo hasta masivo y llévalo a la <b>talladora de gemas</b>.')}
     ${gSec(gImg(ore('galactium', 3)), '8. Galactium', 'Está en lo más hondo de la cueva. Fusiona hasta conseguir un <b>Galactium masivo</b> para completar el juego.')}
     <div class="mut" style="margin-top:8px">Consulta las <b>misiones</b> (J) para ganar monedas extra por el camino.</div>`;
@@ -2240,7 +2308,11 @@ const MISSIONS = [
   { id: 'm11', n: 'Funde tu primer lingote', r: 3000, c: () => S.flags.ingot },
   { id: 'm12', n: 'Construye un embudo (recto o en curva)', r: 1500, c: () => (S.built.funnel || 0) + (S.built.corner || 0) > 0 },
   { id: 'm13', n: 'Construye un compactador', r: 4000, c: () => S.built.compactor > 0 },
+  { id: 'm17', n: 'Contrata a un vendedor', r: 4000, c: () => S.built.seller > 0 },
+  { id: 'm16', n: 'Corta un lingote con la sierra', r: 3000, c: () => S.flags.saw },
   { id: 'm20', n: 'Fusiona dos lingotes', r: 2500, c: () => S.flags.ingotMerge },
+  { id: 'm30', n: 'Haz explotar una dinamita', r: 300, c: () => S.flags.tnt },
+  { id: 'm31', n: 'Encuentra un tesoro', r: 500, c: () => S.flags.treasure },
   { id: 'm21', n: 'Descubre estaño', r: 1000, c: () => S.disc.tin },
   { id: 'm23', n: 'Construye un imán', r: 3000, c: () => S.built.magnet > 0 },
   { id: 'm22', n: 'Forja tu primera aleación', r: 8000, c: () => S.flags.alloy },
@@ -2250,8 +2322,7 @@ const MISSIONS = [
   { id: 'm25', n: 'Consigue un bloque de lingotes', r: 40000, c: () => S.flags.ingotBlock },
   { id: 'm26', n: 'Construye un acelerador', r: 30000, c: () => S.built.accel > 0 },
   { id: 'm29', n: 'Acuña tu primer lingote', r: 30000, c: () => S.flags.mint },
-  { id: 'm16', n: 'Corta un lingote con la sierra', r: 15000, c: () => S.flags.saw },
-  { id: 'm17', n: 'Contrata a un vendedor', r: 50000, c: () => S.built.seller > 0 },
+
   { id: 'm27', n: 'Descubre diamante', r: 120000, c: () => S.disc.diamond },
   { id: 'm28', n: 'Talla un diamante', r: 200000, c: () => S.flags.gem },
   { id: 'm18', n: 'Alcanza el Galactium', r: 250000, c: () => S.disc.galactium },
