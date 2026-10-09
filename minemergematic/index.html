@@ -248,7 +248,8 @@ const MATS = {
 };
 const MAT_ORDER = ['coal', 'copper', 'iron', 'gold', 'galactium'];
 const SIZE_N = ['pequeño', 'mediano', 'grande', 'masivo'];
-const SPAWN = [[100, 0, 0, 0], [70, 30, 0, 0], [45, 40, 15, 0], [20, 45, 30, 5], [0, 40, 45, 15]];
+// Probabilidad (%) de cada tamaño por nivel de veta; el nivel máximo solo suelta masivos
+const SPAWN = [[100, 0, 0, 0], [70, 30, 0, 0], [45, 40, 15, 0], [20, 45, 30, 5], [0, 0, 0, 100]];
 const FUEL = [1, 2, 5, 12];
 const SMELT_TIME = 30, COMPACT_TIME = 8, SAW_TIME = 20;
 
@@ -1611,7 +1612,7 @@ function guideHTML() {
   if (guideTab === 'basics') return `
     ${gSec(gImg(vein('coal')), 'Picar vetas', 'Haz clic en una veta para picarla. Cada veta tiene una <b>dureza</b>: cuando la llenas de golpes suelta un trozo de mineral en una de las 8 casillas de alrededor. Si no queda sitio, la veta se bloquea (aparece un <b>!</b>).')}
     ${gSec(gImg(ore('coal', 3)), 'Fusionar', 'Arrastra un trozo encima de otro <b>igual</b> para fusionarlos: pequeño → mediano → grande → <b>masivo</b>. Cada tamaño vale bastante más que dos del anterior.')}
-    ${gSec(gImg(vein('copper', 2)), 'Subir vetas de nivel', 'Dos vetas del mismo material y nivel se fusionan en una de nivel superior (máximo 5). Las vetas de nivel alto sueltan trozos más grandes y son algo más blandas.')}
+    ${gSec(gImg(vein('copper', 2)), 'Subir vetas de nivel', 'Dos vetas del mismo material y nivel se fusionan en una de nivel superior (máximo 5). Las vetas de nivel alto sueltan trozos más grandes y son algo más blandas. Al <b>nivel máximo (5)</b> solo sueltan trozos <b>masivos</b>.')}
     ${gSec('<span class="gtxt">🪙</span>', 'Vender', 'Arrastra cualquier objeto a la <b>tienda</b> del enano para venderlo. También puedes vender todo lo que hay en un cofre o caja dorada con su botón <b>Vender todo</b>.')}
     ${gSec('<span class="gtxt">⛏️</span>', 'Excavar', 'Haz clic en una roca pegada a la cueva para excavarla y ganar espacio. Cuanto más hondo, más cara. Algunas rocas esconden vetas nuevas: fíjate en los puntitos de color.')}
     ${gSec('<span class="gtxt">🛒</span>', 'La tienda', 'Se abre a la derecha y puedes seguir jugando. Compra picos más fuertes, mejoras para taladros y embudos, vetas y planos. Arrastra vetas y planos directamente al tablero.')}`;
