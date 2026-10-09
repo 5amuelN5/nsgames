@@ -99,7 +99,35 @@ button{font-family:'Lilita One','Nunito',sans-serif;cursor:pointer;border:none;c
 .toast{background:#2a170aee;border:2px solid #f5c542;border-radius:8px;padding:6px 14px;font-family:'Lilita One';font-size:14px;animation:tin .25s ease-out}
 @keyframes tin{from{opacity:0;transform:translateY(-8px)}}
 /* Escala de interfaz y posición del panel */
-#coins,#tools,#info,#hint,#toasts{zoom:var(--ui,1)}
+#coins,#tools,#info,#hint,#toasts,#side{zoom:var(--ui,1)}
+/* Panel lateral: la tienda, las misiones y los ajustes se abren a la derecha sin pausar el juego */
+:root{--sideW:min(370px,88vw)}
+#side{position:fixed;top:0;right:0;bottom:0;width:var(--sideW);z-index:8;display:flex;flex-direction:column;padding:8px 8px 6px;
+  border-radius:12px 0 0 12px;border-right:none;transform:translateX(106%);visibility:hidden;
+  transition:transform .38s cubic-bezier(.2,.9,.25,1.04),visibility 0s .38s;box-shadow:inset 0 0 0 2px #a8744a,-8px 0 24px rgba(0,0,0,.45)}
+#side.open{transform:none;visibility:visible;transition:transform .38s cubic-bezier(.2,.9,.25,1.04),visibility 0s}
+.shead{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 8px}
+.shead span{font-size:21px}
+#sB{flex:1;overflow:auto;padding:8px;overscroll-behavior:contain}
+.sfoot{padding:7px 4px 1px;font-size:12px;color:#e8cf9c;text-align:center;line-height:1.3}
+.sfoot:empty{display:none}
+#side .card{flex-wrap:wrap}
+#side .card .tx{min-width:150px}
+#tools{transition:right .38s cubic-bezier(.2,.9,.25,1.04)}
+body.side-open #tools{right:calc(var(--sideW) + 10px)}
+.card[data-drag]{cursor:grab;touch-action:pan-y}
+.card[data-drag] .ic{position:relative;touch-action:none}
+.card[data-drag] .ic::after{content:'';position:absolute;right:-4px;bottom:-4px;width:15px;height:15px;border-radius:50%;background:#c98a3e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M12 4v16M4 12h16'/%3E%3C/svg%3E") center/9px no-repeat;border:2px solid #3b2412}
+.card[data-drag]:hover .ic{animation:wiggle .5s ease-in-out}
+@keyframes wiggle{25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+.card.dragging{opacity:.45;transform:scale(.97)}
+#side img,#modal img{-webkit-user-drag:none;user-select:none}
+body.shopdrag,body.shopdrag *{cursor:grabbing!important}
+#dragChip{position:fixed;left:0;top:0;z-index:12;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px;will-change:transform}
+#dragChip img{width:54px;height:54px;filter:drop-shadow(0 8px 10px rgba(0,0,0,.5));transition:opacity .12s,transform .12s}
+#dragChip span{font-family:'Lilita One';font-size:13px;background:#2a170aee;border:2px solid #1a0d04;border-radius:6px;padding:1px 7px;white-space:nowrap}
+#dragChip.board img{opacity:0;transform:scale(.6)}
+#dragChip.bad span{color:#ff8f7a}
 #coins{transition:transform .08s ease-out;transform-origin:left center}
 body.info-tl #info{top:58px;bottom:auto}
 body.info-off #info{display:none!important}
@@ -144,6 +172,8 @@ kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-
 .stats div{background:#4a2e16;border-radius:6px;padding:7px 9px;font-size:13px}
 .stats b{display:block;font-family:'Lilita One';font-weight:400;font-size:17px;color:#ffd65a}
 @media (max-width:600px){
+  #side{top:auto;left:0;width:auto;height:58vh;border-radius:14px 14px 0 0;border-right:3px solid var(--wood-dd);transform:translateY(106%)}
+  body.side-open #tools{right:10px}
   input[type=range]{width:100px}
   .set{flex-wrap:wrap}
   #info{width:calc(100vw - 76px)}
@@ -171,6 +201,8 @@ kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-
 <div id="tip" class="hidden"></div>
 <div id="hint" class="panel hidden"></div>
 <div id="toasts"></div>
+<aside id="side" class="panel" aria-label="Panel lateral"><div class="shead"><span id="sT" class="ttl"></span><button class="x" data-act="sclose" title="Cerrar (Esc)">✕</button></div><div class="tabs" id="sTabs"></div><div id="sB" class="mbody inner"></div><div id="sFoot" class="sfoot"></div></aside>
+<div id="dragChip" class="hidden"><img alt=""><span></span></div>
 <div id="modal" class="hidden"><div class="mbox panel"><div class="mhead"><span id="mT" class="ttl"></span><button class="x" data-act="close">✕</button></div><div class="tabs" id="mTabs"></div><div id="mB" class="mbody inner"></div></div></div>
 
 <script>
@@ -1187,7 +1219,8 @@ const itemImg = it => `<img src="${iconURL('item', clone(it))}" alt="">`;
 let sel = null;           // casilla seleccionada
 let place = null;         // {type, dir} modo colocación
 let mode = null;          // 'move' | 'demolish' | null
-let modalKind = null, shopTab = 'tools';
+let modalKind = null, sideKind = null, shopTab = 'tools';
+let shopDrag = null;      // arrastre desde la tienda: {kind:'build'|'vein', val, dir, started, over}
 
 function setMode(m) {
   mode = mode === m ? null : m;
@@ -1197,7 +1230,7 @@ function setMode(m) {
 function updateTools() {
   document.querySelectorAll('.tb').forEach(b => {
     const a = b.dataset.act;
-    b.classList.toggle('on', (a === 'move' && mode === 'move') || (a === 'demolish' && mode === 'demolish') || (a === 'shop' && modalKind === 'shop'));
+    b.classList.toggle('on', (a === 'move' && mode === 'move') || (a === 'demolish' && mode === 'demolish') || (a === sideKind && (a === 'shop' || a === 'missions' || a === 'settings')));
   });
   const tutLock = S.tut < 8;
   document.querySelectorAll('.tb').forEach(b => { if (b.dataset.act !== 'settings') b.disabled = tutLock; });
@@ -1307,13 +1340,29 @@ function openModal(kind) {
   renderModal(); updateTools();
 }
 function closeModal() { modalKind = null; $('modal').classList.add('hidden'); updateTools(); }
+function openSide(kind) {
+  sideKind = kind;
+  $('side').classList.add('open'); document.body.classList.add('side-open');
+  $('sB').scrollTop = 0;
+  renderSide(); updateTools();
+}
+function closeSide() { sideKind = null; $('side').classList.remove('open'); document.body.classList.remove('side-open'); updateTools(); }
+function toggleSide(kind) { sideKind === kind ? closeSide() : openSide(kind); }
+function renderSide() {
+  if (!sideKind) return;
+  const b = $('sB'), sc = b.scrollTop;
+  renderPanel(sideKind, $('sT'), $('sTabs'), b);
+  b.scrollTop = sc;
+  $('sFoot').textContent = sideKind === 'shop' && shopTab !== 'tools' ? 'Arrastra el icono al tablero para colocarlo donde quieras · o pulsa el precio' : '';
+}
+function refreshPanels() { if (sideKind) renderSide(); if (modalKind) renderModal(); }
 function priceHTML(c) { return `<span class="price"><span class="coin"></span>${fmt(c)}</span>`; }
 function veinPrice(m) { return Math.round(MATS[m].vein * Math.pow(1.25, S.bought[m] || 0)); }
-function renderModal() {
-  const mB = $('mB'), tabs = $('mTabs');
-  document.querySelector('.mhead .x').classList.toggle('hidden', modalKind === 'clickmode');
-  if (modalKind === 'shop') {
-    $('mT').textContent = 'Tienda del enano';
+function renderModal() { if (modalKind) renderPanel(modalKind, $('mT'), $('mTabs'), $('mB')); }
+function renderPanel(kind, tEl, tabs, mB) {
+  if (tEl === $('mT')) document.querySelector('.mhead .x').classList.toggle('hidden', kind === 'clickmode');
+  if (kind === 'shop') {
+    tEl.textContent = 'Tienda del enano';
     tabs.innerHTML = [['tools', 'Herramientas'], ['veins', 'Vetas'], ['build', 'Planos']].map(([k, n]) => `<button class="tab ${shopTab === k ? 'on' : ''}" data-act="tab" data-t="${k}">${n}</button>`).join('');
     let h = '';
     if (shopTab === 'tools') {
@@ -1330,42 +1379,43 @@ function renderModal() {
         `Los embudos mueven un objeto cada ${FUNNELS[S.funnel].i / 10}s.` + (nf ? ` Mejora a ${nf.i / 10}s.` : '') + (!S.flags.ingot ? ' Requiere fundir un lingote.' : ''),
         nf ? buyBtn('funnel', nf.c, !S.flags.ingot) : '<span class="y">MÁX</span>');
     } else if (shopTab === 'veins') {
-      h += '<div class="mut" style="margin-bottom:8px">La veta comprada aparece en el suelo libre más cercano a la tienda. Fusiona dos vetas iguales del mismo nivel para subirla de nivel.</div>';
+      h += '<div class="mut" style="margin-bottom:8px">Arrastra una veta a la casilla libre que quieras (o suéltala sobre otra igual de nivel 1 para fusionarla). Si pulsas el precio aparece junto a la tienda.</div>';
       ['coal', 'copper', 'iron', 'gold'].forEach(m => {
         const ok = S.disc[m];
         h += card(iconURL('item', vein(m)), 'Veta de ' + MATS[m].n.toLowerCase(),
           ok ? `Dureza ${MATS[m].hard}. Suelta ${MATS[m].n.toLowerCase()}.` : 'Descúbrela excavando más hondo.',
-          buyBtn('vein:' + m, veinPrice(m), !ok), !ok);
+          buyBtn('vein:' + m, veinPrice(m), !ok), !ok, ok ? 'vein:' + m : null);
       });
     } else {
-      h += '<div class="mut" style="margin-bottom:8px">Pagas las monedas al colocar el plano. Después entrega los materiales arrastrándolos encima (o con embudos). Mientras es un plano actúa como bloqueador.</div>';
+      h += '<div class="mut" style="margin-bottom:8px">Arrastra el plano al tablero (R para girarlo mientras arrastras) o pulsa el precio para colocar varios. Después entrégale los materiales arrastrándolos encima o con embudos.</div>';
       BORDER.forEach(k => {
         const d = BDEF[k], ok = isUnlocked(d.u);
         const mats = d.it.map(s => `<span class="chip">${itemImg(specItem(s))}x${s[3]}</span>`).join('');
         h += card(iconURL('b', { type: k }), d.n,
           (ok ? d.d : '🔒 ' + UNLOCK_TXT[d.u]) + (mats ? `<span class="chips">${mats}</span>` : ''),
-          `<button class="btn gr" data-act="place" data-t="${k}" data-cost="${d.c}" data-lock="${ok ? 0 : 1}" ${ok && S.coins >= d.c ? '' : 'disabled'}>${priceHTML(d.c)}</button>`, !ok);
+          `<button class="btn gr" data-act="place" data-t="${k}" data-cost="${d.c}" data-lock="${ok ? 0 : 1}" ${ok && S.coins >= d.c ? '' : 'disabled'}>${priceHTML(d.c)}</button>`, !ok, ok ? 'build:' + k : null);
       });
     }
     mB.innerHTML = h;
-  } else if (modalKind === 'missions') {
-    $('mT').textContent = 'Misiones'; tabs.innerHTML = '';
+  } else if (kind === 'missions') {
+    const done = MISSIONS.filter(m => S.missions[m.id]).length;
+    tEl.textContent = `Misiones ${done}/${MISSIONS.length}`; tabs.innerHTML = '';
     mB.innerHTML = MISSIONS.map(m => `<div class="mis ${S.missions[m.id] ? 'done' : ''}"><span class="ck">${S.missions[m.id] ? '✓' : ''}</span><span>${m.n}</span>${m.r ? `<span class="rw"><span class="coin" style="width:16px;height:16px"></span>${fmt(m.r)}</span>` : ''}</div>`).join('');
-  } else if (modalKind === 'settings') {
-    $('mT').textContent = 'Ajustes';
+  } else if (kind === 'settings') {
+    tEl.textContent = 'Ajustes';
     tabs.innerHTML = SET_TABS.map(([k, n]) => `<button class="tab ${setTab === k ? 'on' : ''}" data-act="stab" data-t="${k}">${n}</button>`).join('');
     mB.innerHTML = settingsHTML();
-  } else if (modalKind === 'clickmode') {
-    $('mT').textContent = 'Elige tu modo de clic'; tabs.innerHTML = '';
+  } else if (kind === 'clickmode') {
+    tEl.textContent = 'Elige tu modo de clic'; tabs.innerHTML = '';
     mB.innerHTML = `<div class="big">En este juego se hace bastante clic.<br>Si prefieres algo más relajado, activa el <b>auto-clic</b>: basta con mantener pulsado.<br><span class="mut">Puedes cambiarlo cuando quieras en Ajustes.</span></div>
       <div class="center"><button class="btn" data-act="cm" data-v="0">Mantener clic manual</button><button class="btn gr" data-act="cm" data-v="1">Activar auto-clic</button></div>`;
-  } else if (modalKind === 'win') {
-    $('mT').textContent = '¡Galactium masivo!'; tabs.innerHTML = '';
+  } else if (kind === 'win') {
+    tEl.textContent = '¡Galactium masivo!'; tabs.innerHTML = '';
     mB.innerHTML = `<div class="big">¡Lo has conseguido! Has encontrado y fusionado el legendario <b>Galactium</b> en lo más hondo de la Cueva 261.<br><br>
       Excavadas: <b>${S.stats.dug}</b> · Fusiones: <b>${fmt(S.stats.merges)}</b> · Ganado: <b>${fmt(S.stats.earned)}</b></div>
       <div class="center"><button class="btn gr" data-act="close">Seguir jugando</button></div>`;
-  } else if (modalKind === 'offline') {
-    $('mT').textContent = '¡Bienvenido de nuevo!'; tabs.innerHTML = '';
+  } else if (kind === 'offline') {
+    tEl.textContent = '¡Bienvenido de nuevo!'; tabs.innerHTML = '';
     mB.innerHTML = `<div class="big">${offlineMsg}</div><div class="center"><button class="btn gr" data-act="close">¡Genial!</button></div>`;
   }
 }
@@ -1445,8 +1495,8 @@ function applySettings() {
   if (want !== DPR) resize();
   applyVolumes();
 }
-function card(icon, title, desc, right, locked) {
-  return `<div class="card ${locked ? 'lock' : ''}"><div class="ic"><img src="${icon}" alt=""></div><div class="tx"><b>${title}</b><small>${desc}</small></div>${right}</div>`;
+function card(icon, title, desc, right, locked, drag) {
+  return `<div class="card ${locked ? 'lock' : ''}" ${drag ? `data-drag="${drag}" title="Arrastra al tablero"` : ''}><div class="ic"><img src="${icon}" alt=""></div><div class="tx"><b>${title}</b><small>${desc}</small></div>${right}</div>`;
 }
 function buyBtn(what, cost, locked) {
   return `<button class="btn gr" data-act="buy" data-w="${what}" data-cost="${cost}" data-lock="${locked ? 1 : 0}" ${!locked && S.coins >= cost ? '' : 'disabled'}>${priceHTML(cost)}</button>`;
@@ -1475,7 +1525,7 @@ function buy(w) {
     toast('Veta de ' + MATS[m].n.toLowerCase() + ' colocada');
   }
   snd('coin');
-  renderModal();
+  refreshPanels();
 }
 
 // ---------- Misiones ----------
@@ -1505,6 +1555,7 @@ function checkMissions() {
     if (!S.missions[m.id] && m.c()) {
       S.missions[m.id] = true; S.coins += m.r;
       toast('✓ Misión: ' + m.n + (m.r ? '  +' + fmt(m.r) : ''));
+      if (sideKind === 'missions') renderSide();
       snd('coin');
     }
   }
@@ -1702,30 +1753,33 @@ function clickTile(t) {
   }
   sel = { x: t.x, y: t.y }; refreshInfo();
 }
-function openShop() { S.stats.shopOpened++; openModal('shop'); tutCheck(); }
+function openShop() { S.stats.shopOpened++; openSide('shop'); tutCheck(); }
 
 addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
   if (e.key === 'Escape') {
     if (modalKind) { if (modalKind !== 'clickmode') closeModal(); }
+    else if (shopDrag) endShopDrag(null);
     else if (place || mode) { place = null; mode = null; }
     else if (P.mode === 'drag') cancelDrag();
-    else openModal('settings');
+    else if (sideKind) closeSide();
+    else openSide('settings');
     updateTools(); updateHint(); return;
   }
   if (modalKind) return;
   const k = e.key.toLowerCase();
   if (k === 'r') {
+    if (shopDrag && shopDrag.kind === 'build') { shopDrag.dir = (shopDrag.dir + 1) % 4; return; }
     if (place && BDEF[place.type].dir) { place.dir = (place.dir + 1) % 4; return; }
     const t = tileAtScreen(P.x, P.y) || (sel && tile(sel.x, sel.y));
     if (t && t.b && BDEF[t.b.type].dir) rotateB(t);
     else if (sel) { const s = tile(sel.x, sel.y); if (s && s.b && BDEF[s.b.type].dir) rotateB(s); }
   }
   if (S.tut < 8) return;
-  if (k === 'b') openShop();
+  if (k === 'b') sideKind === 'shop' ? closeSide() : openShop();
   if (k === 'm') setMode('move');
   if (k === 'x') setMode('demolish');
-  if (k === 'j') openModal('missions');
+  if (k === 'j') toggleSide('missions');
 });
 const keys = {};
 addEventListener('keydown', e => { if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return; keys[e.key.toLowerCase()] = true; });
@@ -1750,7 +1804,7 @@ document.addEventListener('click', e => {
   const a = el.dataset.act;
   snd('click');
   switch (a) {
-    case 'shop': modalKind === 'shop' ? closeModal() : openShop(); break;
+    case 'shop': sideKind === 'shop' ? closeSide() : openShop(); break;
     case 'move': setMode('move'); break;
     case 'demolish': setMode('demolish'); break;
     case 'rotate': {
@@ -1759,19 +1813,20 @@ document.addEventListener('click', e => {
       if (s && s.b && BDEF[s.b.type].dir) rotateB(s); else toast('Selecciona una máquina para girarla');
       break;
     }
-    case 'missions': openModal('missions'); break;
-    case 'settings': modalKind === 'settings' ? closeModal() : openModal('settings'); break;
+    case 'missions': toggleSide('missions'); break;
+    case 'settings': toggleSide('settings'); break;
     case 'close': closeModal(); break;
-    case 'tab': shopTab = el.dataset.t; renderModal(); break;
+    case 'sclose': closeSide(); break;
+    case 'tab': shopTab = el.dataset.t; $('sB').scrollTop = 0; refreshPanels(); break;
     case 'buy': buy(el.dataset.w); break;
-    case 'place': place = { type: el.dataset.t, dir: 0 }; mode = null; closeModal(); updateHint(); break;
+    case 'place': place = { type: el.dataset.t, dir: 0 }; mode = null; updateHint(); updateTools(); break;
     case 'rot': { const s = sel && tile(sel.x, sel.y); if (s && s.b) rotateB(s); break; }
     case 'demo': { const s = sel && tile(sel.x, sel.y); if (s && s.b) demolish(s); break; }
     case 'empty': { const s = sel && tile(sel.x, sel.y); if (s && s.b && s.b.inv) { const inv = s.b.inv.splice(0); inv.forEach(it => dropOrSell(s.x, s.y, it)); refreshInfo(); } break; }
     case 'takeinv': { const s = sel && tile(sel.x, sel.y); if (s && s.b && s.b.inv) { const it = s.b.inv.splice(+el.dataset.i, 1)[0]; if (it) dropOrSell(s.x, s.y, it); refreshInfo(); } break; }
     case 'clrfilter': { const s = sel && tile(sel.x, sel.y); if (s && s.b) { s.b.filter = null; refreshInfo(); } break; }
     // ajustes
-    case 'stab': setTab = el.dataset.t; renderModal(); $('mB').scrollTop = 0; break;
+    case 'stab': setTab = el.dataset.t; $('sB').scrollTop = 0; refreshPanels(); break;
     case 'stog': {
       const k = el.dataset.k; S.set[k] = !S.set[k];
       el.classList.toggle('on', S.set[k]);
@@ -1820,6 +1875,69 @@ document.addEventListener('click', e => {
     case 'cm': S.set.auto = el.dataset.v === '1'; S.set.chosen = true; closeModal(); updateBubble(); break;
   }
 });
+// Arrastrar vetas y planos desde la tienda al tablero
+document.addEventListener('pointerdown', e => {
+  const c = e.target.closest('.card[data-drag]');
+  if (!c || e.button !== 0 || e.target.closest('button') || c.classList.contains('lock')) return;
+  if (e.pointerType !== 'mouse' && !e.target.closest('.ic')) return; // en táctil se arrastra desde el icono
+  const [kind, val] = c.dataset.drag.split(':');
+  shopDrag = { kind, val, dir: 0, started: false, over: false, sx: e.clientX, sy: e.clientY, card: c, id: e.pointerId };
+  e.preventDefault(); // evita el arrastre nativo de la imagen
+});
+document.addEventListener('dragstart', e => { if (e.target.closest && e.target.closest('#side,#modal')) e.preventDefault(); });
+document.addEventListener('pointermove', e => {
+  if (!shopDrag || e.pointerId !== shopDrag.id) return;
+  if (!shopDrag.started) {
+    if (Math.hypot(e.clientX - shopDrag.sx, e.clientY - shopDrag.sy) < 6) return;
+    shopDrag.started = true;
+    shopDrag.card.classList.add('dragging'); document.body.classList.add('shopdrag');
+    const chip = $('dragChip');
+    chip.querySelector('img').src = shopDrag.card.querySelector('.ic img').src;
+    chip.classList.remove('hidden');
+    snd('click');
+  }
+  P.x = e.clientX; P.y = e.clientY;
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  shopDrag.over = !!under && under === cv;
+  const chip = $('dragChip'), cost = shopDragCost();
+  chip.style.transform = `translate(${e.clientX}px,${e.clientY}px) translate(-50%,${shopDrag.over ? '-130%' : '-60%'})`;
+  chip.classList.toggle('board', shopDrag.over);
+  chip.classList.toggle('bad', S.coins < cost);
+  chip.querySelector('span').textContent = (shopDrag.over ? (shopDrag.kind === 'build' ? 'Soltar: ' : 'Comprar: ') : '') + fmt(cost);
+});
+function shopDragCost() { return shopDrag.kind === 'build' ? BDEF[shopDrag.val].c : veinPrice(shopDrag.val); }
+function endShopDrag(e) {
+  const d = shopDrag; shopDrag = null;
+  $('dragChip').classList.add('hidden'); document.body.classList.remove('shopdrag');
+  if (d && d.card) d.card.classList.remove('dragging');
+  if (!d || !d.started || !e || e.type === 'pointercancel') return;
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  if (under !== cv) return; // soltado sobre el panel: cancelar
+  const t = tileAtScreen(e.clientX, e.clientY);
+  if (d.kind === 'build') {
+    if (placeGhost(t, d.val, d.dir)) { sel = { x: t.x, y: t.y }; refreshInfo(); }
+  } else buyVeinAt(t, d.val);
+  refreshPanels();
+}
+document.addEventListener('pointerup', e => { if (shopDrag && e.pointerId === shopDrag.id) endShopDrag(e); });
+document.addEventListener('pointercancel', e => { if (shopDrag && e.pointerId === shopDrag.id) endShopDrag(e); });
+function buyVeinAt(t, m) {
+  const c = veinPrice(m);
+  if (S.coins < c) { snd('err'); toast('Necesitas ' + fmt(c) + ' monedas'); return; }
+  const free = t && t.ty === 'floor' && !t.b && !t.item;
+  const mergeable = t && t.ty === 'floor' && !t.b && t.item && t.item.k === 'vein' && t.item.m === m && t.item.lvl === 1;
+  if (!free && !mergeable) { snd('err'); toast('Suelta la veta en una casilla libre'); return; }
+  S.coins -= c; S.bought[m] = (S.bought[m] || 0) + 1;
+  const cx = t.x * T + T / 2, cy = t.y * T + T / 2;
+  if (mergeable) doMerge(t, vein(m));
+  else {
+    const v = vein(m); t.item = v; v.pop = 1; v.h = 30; v.hv = 0;
+    burst(cx, cy, MATS[m].hi, 10, 120, { star: true, g: 120 }); ring(cx, cy, MATS[m].hi, 40);
+    puff(cx, cy + 10, 'rgb(150,135,120)', 3, 18, 6); snd('coin');
+  }
+  sel = { x: t.x, y: t.y }; refreshInfo();
+}
+
 $('bubble').addEventListener('pointerdown', e => {
   e.stopPropagation();
   const st = TUT[S.tut];
@@ -1924,7 +2042,7 @@ function frame(now) {
   // temporizadores
   secAcc += dt; saveAcc += dt; infoAcc += dt;
   if (npcTimer > 0) { npcTimer -= dt; if (npcTimer <= 0) updateBubble(); }
-  if (secAcc >= 1) { secAcc = 0; checkMissions(); tutCheck(); if (modalKind === 'shop') renderShopButtons(); }
+  if (secAcc >= 1) { secAcc = 0; checkMissions(); tutCheck(); if (sideKind === 'shop') renderShopButtons(); }
   if (saveAcc >= 10) { saveAcc = 0; save(); }
   if (infoAcc >= 0.25 || infoDirty) { infoAcc = 0; renderInfo(); }
   musicTick();
@@ -1938,7 +2056,7 @@ function frame(now) {
   render(dt);
 }
 function renderShopButtons() {
-  document.querySelectorAll('#mB [data-cost]').forEach(b => { b.disabled = b.dataset.lock === '1' || S.coins < +b.dataset.cost; });
+  document.querySelectorAll('#sB [data-cost],#mB [data-cost]').forEach(b => { b.disabled = b.dataset.lock === '1' || S.coins < +b.dataset.cost; });
 }
 
 function render(dt) {
@@ -2053,6 +2171,18 @@ function render(dt) {
   if (mode === 'demolish' && hov && hov.b) { g.save(); g.globalAlpha = 0.25 + Math.sin(time * 8) * 0.08; g.fillStyle = '#e0533d'; g.fillRect(hov.x * T, hov.y * T, T, T); g.restore(); }
   if (mode === 'move' && hov && hov.b) { g.strokeStyle = '#7fc8ff'; g.lineWidth = 3; g.strokeRect(hov.x * T + 3, hov.y * T + 3, T - 6, T - 6); }
   if (P.mode === 'bdrag' && P.bdrag && hov) drawBuilding(g, hov, Object.assign({}, P.bdrag.b, { drop: 0, fl: 0 }), time, 0.55);
+  // vista previa al arrastrar desde la tienda
+  if (shopDrag && shopDrag.started && shopDrag.over && hov) {
+    const d = shopDrag, afford = S.coins >= shopDragCost();
+    let ok = hov.ty === 'floor' && !hov.b && !hov.item;
+    if (d.kind === 'vein' && hov.item && hov.item.k === 'vein' && hov.item.m === d.val && hov.item.lvl === 1 && !hov.b) ok = true;
+    ok = ok && afford;
+    const a = 0.22 + Math.sin(time * 8) * 0.07;
+    g.save(); g.globalAlpha = a; g.fillStyle = ok ? '#4fc44f' : '#e0533d'; g.fillRect(hov.x * T, hov.y * T, T, T); g.restore();
+    g.strokeStyle = ok ? '#8ff08f' : '#ff8f7a'; g.lineWidth = 2.5; g.strokeRect(hov.x * T + 2, hov.y * T + 2, T - 4, T - 4);
+    if (d.kind === 'build') drawBuilding(g, hov, { type: d.val, dir: d.dir, ghost: true, need: [] }, time, 0.7);
+    else { g.save(); g.globalAlpha = 0.75; drawItem(g, vein(d.val), hov.x * T + T / 2, hov.y * T + T / 2 - 6 - Math.abs(Math.sin(time * 6)) * 4, 1, time); g.restore(); }
+  }
   // golpes de pico
   for (let i = swings.length - 1; i >= 0; i--) {
     const s = swings[i]; s.t += dt;
