@@ -47,6 +47,9 @@ const SFX = (() => {
 
   return {
     init,
+    // pausa automática: congela y reanuda todo el sonido
+    suspend() { if (ac && ac.state === 'running') ac.suspend(); },
+    resume() { if (ac && ac.state === 'suspended') ac.resume(); },
     get enabled() { return enabled; },
     set enabled(v) { enabled = v; },
     swing() { if (!ok('swing', .05)) return; noise(.09, .05, 'bandpass', r(900, 1300), 2, 0, 400); },

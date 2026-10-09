@@ -345,3 +345,5 @@ b.ok { color: #2e8a46; }
 
 /* Botón para volver a la galería de NSgames */
 .nsback{position:absolute;left:24px;top:22px;z-index:3}
+/* Pausa automática: las animaciones de la interfaz también se detienen */
+body.ns-paused *, body.ns-paused *::before, body.ns-paused *::after{animation-play-state:paused!important}

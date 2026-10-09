@@ -773,7 +773,9 @@ $('#btnContinue').onclick = () => { SFX.init(); SFX.click(); continueGame(); };
    BUCLE PRINCIPAL
    ============================================================ */
 let lastT = performance.now();
+let frozen = false, looping = true;
 function frame(now) {
+  if (frozen) { looping = false; return; }
   const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
   if (screen === 'run' && R) {
     // un error puntual no debe congelar ni ensuciar la partida
@@ -781,6 +783,29 @@ function frame(now) {
   }
   requestAnimationFrame(frame);
 }
+
+/* ============================================================
+   PAUSA AUTOMÁTICA: si el jugador sale del juego, todo se detiene
+   ============================================================ */
+function freezeGame() {
+  if (frozen) return;
+  frozen = true;
+  mouse.down = false; keyDown = false;
+  if (R && !R.ended) togglePause(true);
+  if (meta && cyc) save();
+  SFX.suspend();
+  document.body.classList.add('ns-paused');
+}
+function unfreezeGame() {
+  if (!frozen) return;
+  frozen = false;
+  document.body.classList.remove('ns-paused');
+  SFX.resume();
+  if (!looping) { looping = true; lastT = performance.now(); requestAnimationFrame(frame); }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) freezeGame(); else if (document.hasFocus()) unfreezeGame(); });
+window.addEventListener('blur', freezeGame);
+window.addEventListener('focus', unfreezeGame);
 
 fitStage();
 showScreen('title');
