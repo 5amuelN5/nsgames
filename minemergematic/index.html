@@ -50,6 +50,19 @@ button{font-family:'Lilita One','Nunito',sans-serif;cursor:pointer;border:none;c
 #infoBtns:empty{display:none}
 .btn .coin{width:15px;height:15px;border-width:1.5px;display:inline-block;vertical-align:-2px;margin-right:3px}
 .btn.pulse{animation:btnPulse .9s ease-in-out infinite}
+.gsec{display:flex;gap:10px;align-items:flex-start;padding:9px;margin-bottom:7px;background:#4a2e16;border:2px solid var(--wood-dd);border-radius:7px}
+.gsec b{font-family:'Lilita One';font-weight:400;font-size:15px;display:block;margin-bottom:2px}
+.gsec p{font-size:13px;line-height:1.45;color:#ead6ae}
+.gsec p b{display:inline;font-family:inherit;font-weight:800;font-size:inherit;color:#ffd65a}
+.gic{flex:none;min-width:44px;height:44px;padding:0 3px;background:#2a170a;border-radius:7px;display:flex;align-items:center;justify-content:center;gap:2px}
+.gi{width:38px;height:38px}
+.gtxt{font-size:24px}
+.fchip{cursor:pointer}.fchip:hover{background:#5a2416}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:4px;margin-top:5px}
+.fopt{display:grid;place-items:center;height:34px;border-radius:6px;background:#2a170a;border:2px solid transparent;cursor:pointer;opacity:.6;transition:opacity .12s,border-color .12s,transform .12s}
+.fopt img{width:28px;height:28px}
+.fopt:hover{opacity:1;transform:scale(1.08)}
+.fopt.on{opacity:1;border-color:#8ff08f;background:#24401f}
 @keyframes btnPulse{50%{filter:brightness(1.25)}}
 .btn{padding:6px 10px;border-radius:6px;font-size:14px;background:var(--blue);border:2px solid #1d4a8a;box-shadow:0 3px 0 #163a6c}
 .btn.gr{background:#3fae3f;border-color:#256e25;box-shadow:0 3px 0 #1d561d}
@@ -198,6 +211,7 @@ kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-
   <button class="tb" data-act="rotate" title="Girar (R)"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v5h-5"/></svg></button>
   <button class="tb" data-act="demolish" title="Demoler (X)"><svg viewBox="0 0 24 24"><path d="M14 4l6 6M17 7l-11 11-3 1 1-3L15 5"/><path d="M4 4l16 16"/></svg></button>
   <button class="tb" data-act="missions" title="Misiones (J)"><svg viewBox="0 0 24 24"><path d="M5 3h11a3 3 0 0 1 3 3v15H8a3 3 0 0 1-3-3z"/><path d="M5 18a3 3 0 0 1 3-3h11M9 7h6M9 10h6"/></svg></button>
+  <button class="tb" data-act="guide" title="Guía (G)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.3-2.7 4"/><circle cx="12" cy="17.6" r=".6" fill="currentColor"/></svg></button>
   <button class="tb" data-act="settings" title="Ajustes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
 </div>
 
@@ -252,18 +266,18 @@ const FUNNELS = [{ i: 8, c: 0 }, { i: 6, c: 4000 }, { i: 4, c: 20000 }, { i: 3, 
 // Edificios: c = monedas, it = [tipo, material, tamaño, cantidad] que hay que entregar al plano
 const BDEF = {
   blocker:   { n: 'Bloqueador',    d: 'Ocupa una casilla: las vetas no sueltan mineral aquí. Úsalo para dirigir la producción.', c: 25, it: [], u: null },
-  chest:     { n: 'Cofre',         d: 'Guarda hasta 12 objetos. Los embudos pueden meter y sacar de él.', c: 150, it: [['ore', 'copper', 2, 2]], u: 'copper' },
-  drill:     { n: 'Taladro',       d: 'Pica automáticamente la veta que tiene delante.', c: 400, it: [['ore', 'coal', 3, 2], ['ore', 'copper', 3, 1]], u: 'copper', dir: true },
+  chest:     { n: 'Cofre',         d: 'Guarda hasta 12 objetos. Los embudos pueden meter y sacar de él. Con un filtro solo acepta los objetos elegidos.', c: 150, it: [['ore', 'copper', 2, 2]], u: 'copper' },
+  drill:     { n: 'Taladro',       d: 'Pica automáticamente la veta que tiene delante. Se para solo si la veta no tiene sitio donde soltar el mineral y vuelve a arrancar cuando lo hay.', c: 400, it: [['ore', 'coal', 3, 2], ['ore', 'copper', 3, 1]], u: 'copper', dir: true },
   furnace:   { n: 'Horno',         d: 'Funde mineral masivo (cobre, hierro u oro) usando carbón como combustible. Expulsa lingotes por delante.', c: 1500, it: [['ore', 'copper', 3, 2], ['ore', 'coal', 3, 3]], u: 'iron', dir: true },
   funnel:    { n: 'Embudo',        d: 'Coge lo que hay detrás (suelo o máquina) y lo lleva delante. Encadénalos como una cinta.', c: 300, it: [['ore', 'iron', 2, 1]], u: 'ingot', dir: true },
-  filter:    { n: 'Embudo filtro', d: 'Como el embudo, pero solo mueve un tipo de objeto. Suelta un objeto encima para elegir el filtro.', c: 800, it: [['ingot', 'copper', 0, 1]], u: 'ingot', dir: true },
+  corner:    { n: 'Embudo en curva', d: 'Coge lo que le llega por un lado y lo saca girando 90°: entra por la izquierda (o la derecha) y sale por delante. R para girar, F para voltear.', c: 350, it: [['ore', 'iron', 2, 1]], u: 'ingot', dir: true },
   splitter:  { n: 'Divisor',       d: 'Coge lo que hay detrás y lo reparte alternando izquierda y derecha. Si un lado está bloqueado usa el otro.', c: 1200, it: [['ore', 'iron', 3, 1]], u: 'ingot', dir: true },
   compactor: { n: 'Compactador',   d: 'Fusiona automáticamente parejas de minerales iguales y expulsa el resultado por delante.', c: 4000, it: [['ingot', 'iron', 0, 1], ['ingot', 'copper', 0, 2]], u: 'ingot', dir: true },
   saw:       { n: 'Sierra',        d: 'Corta cada lingote en 4 pepitas (valen más en total).', c: 25000, it: [['ingot', 'iron', 0, 3]], u: 'gold', dir: true },
-  crate:     { n: 'Caja dorada',   d: 'Almacén sin límite de un único tipo de objeto.', c: 20000, it: [['ingot', 'gold', 0, 1]], u: 'gold' },
+  crate:     { n: 'Caja dorada',   d: 'Almacén sin límite de un único tipo de objeto. Con un filtro eliges qué tipo guarda.', c: 20000, it: [['ingot', 'gold', 0, 1]], u: 'gold' },
   seller:    { n: 'Vendedor',      d: 'Un enano que vende al instante todo lo que le llega.', c: 60000, it: [['ingot', 'gold', 0, 2], ['nugget', 'iron', 0, 4]], u: 'gold' },
 };
-const BORDER = ['blocker', 'chest', 'drill', 'furnace', 'funnel', 'filter', 'splitter', 'compactor', 'saw', 'crate', 'seller'];
+const BORDER = ['blocker', 'chest', 'drill', 'furnace', 'funnel', 'corner', 'splitter', 'compactor', 'saw', 'crate', 'seller'];
 const UNLOCK_TXT = { copper: 'Descubre cobre', iron: 'Descubre hierro', ingot: 'Funde un lingote', gold: 'Descubre oro' };
 
 // ---------- Utilidades ----------
@@ -392,6 +406,7 @@ function load() {
     S.stats = Object.assign(newState().stats, d.S.stats);
     S.set = Object.assign(newState().set, d.S.set);
     G = d.G.map((a, i) => ({ x: i % W, y: (i / W) | 0, ty: TY[a[0]], item: a[1], b: a[2], hid: a[3] }));
+    G.forEach(t => { if (t.b && t.b.type === 'filter') { t.b.type = 'funnel'; delete t.b.filter; } });
     return G.length === W * H;
   } catch (e) { return false; }
 }
@@ -583,6 +598,18 @@ function spawnFrom(t) {
   S.stats.mined++;
   return true;
 }
+// ¿Puede la veta soltar mineral en alguna casilla de alrededor?
+function canSpawn(t) {
+  const v = t.item, tiers = SPAWN[v.lvl - 1].map((p, i) => p ? i : -1).filter(i => i >= 0);
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (!dx && !dy) continue;
+    const n = tile(t.x + dx, t.y + dy);
+    if (!n) continue;
+    if (n.b) { if (tiers.some(ti => bAccepts(n, ore(v.m, ti), t.x, t.y))) return true; }
+    else if (n.ty === 'floor' && !n.item) return true;
+  }
+  return false;
+}
 function hitVein(t, dmg, auto) {
   const v = t.item, hard = veinHard(v);
   v.prog = (v.prog || 0) + dmg;
@@ -633,6 +660,22 @@ function dropNear(x0, y0, it) {
   }
   return false;
 }
+// ---------- Filtros de las cajas ----------
+const itemKey = it => it.k === 'ore' ? `ore:${it.m}:${it.t}` : `${it.k}:${it.m}`;
+function keyItem(k) { const [kind, m, t] = k.split(':'); return kind === 'ore' ? ore(m, +t) : kind === 'ingot' ? ingot(m) : nugget(m); }
+const passFilter = (b, it) => !b.flt || !b.flt.length || b.flt.includes(itemKey(it));
+// Objetos que se pueden elegir como filtro (solo de materiales ya descubiertos)
+function filterOptions() {
+  const out = [];
+  MAT_ORDER.forEach(m => {
+    if (!S.disc[m]) return;
+    for (let t = 0; t < 4; t++) out.push(`ore:${m}:${t}`);
+    if (MATS[m].ingot) { out.push(`ingot:${m}`); out.push(`nugget:${m}`); }
+  });
+  return out;
+}
+let filterOpen = false;
+
 // ---------- Cajas: vaciar de uno en uno y vender ----------
 const isBox = b => b && !b.ghost && (b.type === 'chest' || b.type === 'crate');
 function boxCount(b) { return b.type === 'chest' ? b.inv.length : b.n; }
@@ -727,7 +770,7 @@ function initB(b) {
     case 'furnace': b.fuel = 0; b.ore = null; b.prog = 0; b.out = []; break;
     case 'compactor': b.buf = []; b.prog = 0; b.out = []; break;
     case 'saw': b.inp = null; b.prog = 0; b.out = []; break;
-    case 'funnel': case 'filter': b.hold = null; b.t = 0; if (b.type === 'filter') b.filter = b.filter || null; break;
+    case 'funnel': case 'corner': b.hold = null; b.t = 0; break;
     case 'splitter': b.hold = null; b.t = 0; b.side = 0; break;
   }
 }
@@ -744,26 +787,28 @@ function finishBuild(t) {
   snd('build');
   refreshInfo();
 }
-function backOf(t) { const d = t.b.dir || 0; return tile(t.x - DX[d], t.y - DY[d]); }
+// Lado por el que entra el objeto: los embudos por detrás, las curvas por un lateral
+function inDir(b) { const d = b.dir || 0; return b.type === 'corner' ? (b.flip ? (d + 1) % 4 : (d + 3) % 4) : (d + 2) % 4; }
+function backOf(t) { const s = inDir(t.b); return tile(t.x + DX[s], t.y + DY[s]); }
 
 function bAccepts(t, it, fx, fy) {
   const b = t.b;
   if (it.k === 'vein') return false;
   if (b.ghost) return b.need.some(n => n[3] > 0 && matchSpec(it, n));
   switch (b.type) {
-    case 'chest': return b.inv.length < 12;
-    case 'crate': return b.n < 99999 && (!b.m || sameKind(b.m, it));
+    case 'chest': return b.inv.length < 12 && passFilter(b, it);
+    case 'crate': return b.n < 99999 && (!b.m || sameKind(b.m, it)) && passFilter(b, it);
     case 'furnace':
       if (it.k === 'ore' && it.m === 'coal') return b.fuel < 30;
       return it.k === 'ore' && it.t === 3 && MATS[it.m].ingot > 0 && !b.ore;
     case 'compactor': return it.k === 'ore' && it.t < 3 && b.buf.length < 3;
     case 'saw': return it.k === 'ingot' && !b.inp;
     case 'seller': return true;
-    case 'funnel': case 'filter': case 'splitter': {
+    case 'funnel': case 'corner': case 'splitter': {
       if (b.hold) return false;
-      if (b.type === 'filter' && !(b.filter && sameKind(b.filter, it))) return false;
       if (fx === undefined) return true;
-      return fx === t.x - DX[b.dir] && fy === t.y - DY[b.dir];
+      const sd = inDir(b);
+      return fx === t.x + DX[sd] && fy === t.y + DY[sd];
     }
   }
   return false;
@@ -785,7 +830,7 @@ function bInsert(t, it) {
     case 'compactor': b.buf.push(it); break;
     case 'saw': b.inp = it; b.prog = 0; break;
     case 'seller': sell(it, t.x * T + T / 2, t.y * T); b.fl = 1; break;
-    case 'funnel': case 'filter': case 'splitter': b.hold = it; b.t = funnelInt(); break;
+    case 'funnel': case 'corner': case 'splitter': b.hold = it; b.t = funnelInt(); break;
   }
 }
 const TAKEABLE = { chest: 1, crate: 1, furnace: 1, compactor: 1, saw: 1 };
@@ -817,16 +862,19 @@ function tickB(t) {
   switch (b.type) {
     case 'drill': {
       const f = tile(x + DX[d], y + DY[d]);
-      if (f && f.item && f.item.k === 'vein' && !f.b) { hitVein(f, DRILLS[S.drill].p / 10, true); b.on = 1; } else b.on = 0;
+      const hasVein = f && f.item && f.item.k === 'vein' && !f.b;
+      if (b.off) { b.on = 0; b.why = 'off'; }
+      else if (!hasVein) { b.on = 0; b.why = 'novein'; }
+      else if (!canSpawn(f)) { b.on = 0; b.why = 'full'; f.item.blk = true; }
+      else { hitVein(f, DRILLS[S.drill].p / 10, true); b.on = 1; b.why = ''; }
       break;
     }
-    case 'funnel': case 'filter': {
+    case 'funnel': case 'corner': {
       if (b.hold) {
         if (b.t > 0) b.t--;
         else if (pushTo(x + DX[d], y + DY[d], b.hold, x, y)) b.hold = null;
       } else {
-        const pred = b.type === 'filter' ? (i => b.filter && sameKind(i, b.filter)) : () => true;
-        const it = pullFrom(backOf(t), pred);
+        const it = pullFrom(backOf(t), () => true);
         if (it) { delete it.ox; delete it.oy; b.hold = it; b.t = funnelInt(); }
       }
       break;
@@ -888,12 +936,13 @@ function tick() {
   for (const t of bList) if (t.b) tickB(t);
 }
 
-function placeGhost(t, type, dir) {
+function placeGhost(t, type, dir, flip = 0) {
   const def = BDEF[type];
   if (!t || t.ty !== 'floor' || t.item || t.b) { snd('err'); return false; }
   if (S.coins < def.c) { snd('err'); toast('Necesitas ' + fmt(def.c) + ' monedas'); return false; }
   S.coins -= def.c;
   t.b = { type, dir: def.dir ? dir : 0, ghost: true, need: def.it.map(s => s.slice()), drop: 0.7 };
+  if (type === 'corner') t.b.flip = flip ? 1 : 0;
   if (!t.b.need.length) finishBuild(t); else snd('click');
   return true;
 }
@@ -1185,7 +1234,8 @@ function drawBuilding(g, t, b, time, alpha = 1) {
         g.beginPath(); g.moveTo(-10, -4); g.lineTo(0, -23); g.lineTo(10, -4); g.closePath(); g.fill(); g.stroke();
         g.strokeStyle = '#6c737b'; g.lineWidth = 1.6;
         for (let i = 0; i < 3; i++) { const o = ((sp + i * 5) % 15); g.beginPath(); g.moveTo(-8 + o * 0.45, -5 - o); g.lineTo(6 - o * 0.3, -9 - o); g.stroke(); }
-        g.fillStyle = (!ghost && b.on) ? '#8ff08f' : '#555'; g.beginPath(); g.arc(0, 8, 2.5, 0, 7); g.fill();
+        g.fillStyle = ghost ? '#555' : b.on ? '#8ff08f' : b.why === 'off' ? '#e0533d' : b.why === 'full' ? (Math.sin(time * 8) > 0 ? '#ffd65a' : '#7a5a10') : '#555';
+        g.beginPath(); g.arc(0, 8, 2.8, 0, 7); g.fill();
         break;
       }
       case 'furnace': {
@@ -1201,7 +1251,29 @@ function drawBuilding(g, t, b, time, alpha = 1) {
         }
         break;
       }
-      case 'funnel': case 'filter': {
+      case 'corner': {
+        if (b.flip) g.scale(-1, 1);
+        // base
+        rr(g, -20, -20, 40, 40, 6, '#4b5058', '#1f2328', 2.5);
+        // canal curvo: entra por la izquierda y sale por arriba
+        g.save(); g.beginPath(); g.rect(-20, -20, 40, 40); g.clip();
+        g.strokeStyle = '#2b2f35'; g.lineWidth = 22; g.beginPath(); g.arc(-24, -24, 24, 0, Math.PI / 2); g.stroke();
+        g.strokeStyle = '#8d96a0'; g.lineWidth = 16; g.beginPath(); g.arc(-24, -24, 24, 0, Math.PI / 2); g.stroke();
+        g.strokeStyle = '#d6dde4'; g.lineWidth = 2.4; g.lineCap = 'round';
+        const mv = (!ghost && b.hold) ? (time * 2.6) % 1 : 0;
+        for (let i = 0; i < 3; i++) {
+          const f = ((i / 3) + mv) % 1, a = (1 - f) * Math.PI / 2, cx = -24 + 24 * Math.cos(a), cy = -24 + 24 * Math.sin(a);
+          const tx = Math.sin(a), ty = -Math.cos(a), nx = Math.cos(a), ny = Math.sin(a);
+          g.globalAlpha = alpha * (b.hold ? 0.95 : 0.55);
+          g.beginPath(); g.moveTo(cx - tx * 3 + nx * 5, cy - ty * 3 + ny * 5); g.lineTo(cx + tx * 3, cy + ty * 3); g.lineTo(cx - tx * 3 - nx * 5, cy - ty * 3 - ny * 5); g.stroke();
+        }
+        g.restore(); g.lineCap = 'butt';
+        // marca de entrada
+        g.fillStyle = '#e5b220'; g.fillRect(-20, -6, 4, 12);
+        if (b.flip) g.scale(-1, 1);
+        break;
+      }
+      case 'funnel': {
         g.fillStyle = '#5a6068'; g.strokeStyle = '#1f2328'; g.lineWidth = 2.5;
         g.beginPath(); g.moveTo(-20, 20); g.lineTo(20, 20); g.lineTo(9, -8); g.lineTo(9, -22); g.lineTo(-9, -22); g.lineTo(-9, -8); g.closePath(); g.fill(); g.stroke();
         g.fillStyle = '#8d96a0'; g.beginPath(); g.moveTo(-14, 16); g.lineTo(14, 16); g.lineTo(5, -6); g.lineTo(-5, -6); g.closePath(); g.fill();
@@ -1212,7 +1284,6 @@ function drawBuilding(g, t, b, time, alpha = 1) {
           for (const o of [10, 1, -8]) { const yy = o - mv + 4; g.globalAlpha = alpha * (b.hold ? 0.9 : 0.55); g.beginPath(); g.moveTo(-6, yy + 5); g.lineTo(0, yy - 1); g.lineTo(6, yy + 5); g.stroke(); }
           g.restore();
         }
-        if (b.type === 'filter') { g.strokeStyle = '#3fae3f'; g.lineWidth = 3; g.strokeRect(-9, -22, 18, 6); }
         break;
       }
       case 'splitter': {
@@ -1248,14 +1319,22 @@ function drawBuilding(g, t, b, time, alpha = 1) {
   }
   // contenido visible
   if (!ghost) {
-    if ((b.type === 'funnel' || b.type === 'filter' || b.type === 'splitter') && b.hold) {
+    if ((b.type === 'funnel' || b.type === 'corner' || b.type === 'splitter') && b.hold) {
       // interpolado entre ticks para un movimiento continuo
       const lin = clamp(1 - (b.t - (typeof acc === 'number' ? acc / TICK : 0)) / funnelInt(), 0, 1);
-      const p = lin * lin * (3 - 2 * lin), d = b.dir;
-      const k = (p - 0.5) * T * 0.6, hop = Math.sin(p * Math.PI) * 4;
-      drawItem(g, b.hold, DX[d] * k, DY[d] * k - hop, 0.7, time);
+      const p = lin * lin * (3 - 2 * lin), d = b.dir, hop = Math.sin(p * Math.PI) * 4;
+      if (b.type === 'corner') {
+        // recorre el arco del canal, girado y volteado como la pieza
+        const a = (1 - p) * Math.PI / 2;
+        let lx = -24 + 24 * Math.cos(a), ly = -24 + 24 * Math.sin(a);
+        if (b.flip) lx = -lx;
+        const r = b.ra ?? d * Math.PI / 2, c = Math.cos(r), sn = Math.sin(r);
+        drawItem(g, b.hold, lx * c - ly * sn, lx * sn + ly * c - hop, 0.7, time);
+      } else {
+        const k = (p - 0.5) * T * 0.6;
+        drawItem(g, b.hold, DX[d] * k, DY[d] * k - hop, 0.7, time);
+      }
     }
-    if (b.type === 'filter' && b.filter) drawItem(g, b.filter, 0, 0, 0.45, time);
     if ((b.type === 'furnace' || b.type === 'compactor' || b.type === 'saw') && b.out.length) {
       drawItem(g, b.out[0], 12, 12, 0.5, time);
     }
@@ -1307,7 +1386,7 @@ function setMode(m) {
 function updateTools() {
   document.querySelectorAll('.tb').forEach(b => {
     const a = b.dataset.act;
-    b.classList.toggle('on', (a === 'move' && mode === 'move') || (a === 'demolish' && mode === 'demolish') || (a === sideKind && (a === 'shop' || a === 'missions' || a === 'settings')));
+    b.classList.toggle('on', (a === 'move' && mode === 'move') || (a === 'demolish' && mode === 'demolish') || (a === sideKind && (a === 'shop' || a === 'missions' || a === 'settings' || a === 'guide')));
   });
   const tutLock = S.tut < 8;
   document.querySelectorAll('.tb').forEach(b => { if (b.dataset.act !== 'settings') b.disabled = tutLock; });
@@ -1315,7 +1394,7 @@ function updateTools() {
 function updateHint() {
   const h = $('hint');
   let txt = '';
-  if (place) txt = `Colocando <b>${BDEF[place.type].n}</b> · Clic: colocar · R: girar · Esc / clic derecho: salir`;
+  if (place) txt = `Colocando <b>${BDEF[place.type].n}</b> · Clic: colocar · R: girar${place.type === 'corner' ? ' · F: voltear' : ''} · Esc / clic derecho: salir`;
   else if (mode === 'move') txt = 'Modo mover: arrastra un edificio a otra casilla · Esc para salir';
   else if (mode === 'demolish') txt = 'Modo demoler: clic en un edificio (recuperas todo) · Esc para salir';
   h.innerHTML = txt; h.classList.toggle('hidden', !txt);
@@ -1323,11 +1402,23 @@ function updateHint() {
 
 function refreshInfo() { infoDirty = true; }
 let infoDirty = true;
+function filterHTML(b) {
+  const f = b.flt || [];
+  let h = `<div class="row" style="margin-top:6px"><span class="lbl">Filtro</span><span>${f.length ? f.length + (f.length === 1 ? ' tipo' : ' tipos') : '<span class="mut">Acepta todo</span>'}</span></div>`;
+  if (f.length) h += '<div class="chips">' + f.map(k => `<span class="chip fchip on" data-act="ftog" data-k="${k}" title="Quitar del filtro">${itemImg(keyItem(k))}✕</span>`).join('') + '</div>';
+  if (filterOpen) {
+    h += '<div class="mut" style="margin-top:6px">Elige qué objetos acepta (pulsa para marcar o desmarcar):</div><div class="fgrid">';
+    filterOptions().forEach(k => { h += `<span class="fopt ${f.includes(k) ? 'on' : ''}" data-act="ftog" data-k="${k}" title="${itemName(keyItem(k))}">${itemImg(keyItem(k))}</span>`; });
+    h += '</div>';
+  }
+  return h;
+}
 function renderInfo() {
   infoDirty = false;
   const box = $('info');
   const t = sel ? tile(sel.x, sel.y) : null;
   if (!t) { box.classList.add('hidden'); return; }
+  const sk = t.x + ',' + t.y; if (renderInfo.selKey !== sk) { renderInfo.selKey = sk; filterOpen = false; }
   let title = '', body = '', btns = '';
   if (renderInfo.lastBtns && !t.b) { renderInfo.lastBtns = ''; $('infoBtns').innerHTML = ''; }
   if (t.b) {
@@ -1345,10 +1436,12 @@ function renderInfo() {
           b.inv.forEach((it, i) => body += `<span class="chip" data-act="takeinv" data-i="${i}" style="cursor:pointer" title="Sacar este">${itemImg(it)}</span>`);
           body += '</div>';
           if (b.inv.length) body += `<div class="row" style="margin-top:4px"><span class="lbl">Valor total</span><span class="y">${fmt(boxValue(b))}</span></div><div class="mut">Pulsa un objeto para sacarlo.</div>`;
+          body += filterHTML(b);
           break;
         case 'crate':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Contenido</span><span>${b.m ? fmt(b.n) + ' × ' + itemName(b.m) : 'Vacía'}</span></div>`;
           if (b.m) body += `<div class="row"><span class="lbl">Valor total</span><span class="y">${fmt(boxValue(b))}</span></div>`;
+          body += filterHTML(b);
           break;
         case 'furnace':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Combustible</span><span>${b.fuel} (4 por lingote)</span></div>`;
@@ -1365,21 +1458,22 @@ function renderInfo() {
         case 'saw':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Cortando</span><span>${b.inp ? itemName(b.inp) : '—'}</span></div><div class="bar"><i style="width:${b.prog / SAW_TIME * 100}%"></i></div>`;
           break;
-        case 'filter':
-          body += `<div class="row" style="margin-top:6px"><span class="lbl">Filtro</span><span>${b.filter ? itemName(b.filter) : '<span class="r">Sin filtro</span>'}</span></div>`;
-          break;
         case 'drill':
-          body += `<div class="row" style="margin-top:6px"><span class="lbl">Potencia</span><span>${DRILLS[S.drill].p}/s</span></div><div class="row"><span class="lbl">Estado</span><span>${b.on ? '<span class="g">Picando</span>' : '<span class="r">Sin veta delante</span>'}</span></div>`;
+          body += `<div class="row" style="margin-top:6px"><span class="lbl">Potencia</span><span>${DRILLS[S.drill].p}/s</span></div><div class="row"><span class="lbl">Estado</span><span>${
+            b.on ? '<span class="g">Picando</span>' : b.why === 'off' ? '<span class="r">Parado</span>' : b.why === 'full' ? '<span class="y">En pausa: sin sitio</span>' : '<span class="r">Sin veta delante</span>'}</span></div>`;
+          if (b.why === 'full') body += '<div class="mut">La veta no tiene dónde soltar el mineral. Se reanudará sola cuando haya sitio.</div>';
           break;
       }
     }
     if (def.dir) btns += '<button class="btn br" data-act="rot">Girar (R)</button>';
+    if (isBox(b)) btns += `<button class="btn br" data-act="fopen">${filterOpen ? 'Cerrar filtro' : 'Filtro'}</button>`;
+    if (b.type === 'corner' && !b.ghost) btns += '<button class="btn br" data-act="flip">Voltear (F)</button>';
+    if (b.type === 'drill' && !b.ghost) btns += `<button class="btn ${b.off ? 'gr' : 'rd'}" data-act="drilltog">${b.off ? 'Arrancar' : 'Parar'}</button>`;
     if (isBox(b) && boxCount(b)) {
       const on = emptying && emptying.x === t.x && emptying.y === t.y;
       btns += `<button class="btn br ${on ? 'pulse' : ''}" data-act="empty">${on ? 'Parar' : 'Vaciar'}</button>`;
       btns += '<button class="btn gr" data-act="sellbox"><span class="coin"></span>Vender todo</button>';
     }
-    if (b.type === 'filter' && !b.ghost && b.filter) btns += '<button class="btn br" data-act="clrfilter">Quitar filtro</button>';
     btns += '<button class="btn rd" data-act="demo">Demoler</button>';
   } else if (t.item) {
     const it = t.item;
@@ -1485,6 +1579,10 @@ function renderPanel(kind, tEl, tabs, mB) {
     const done = MISSIONS.filter(m => S.missions[m.id]).length;
     tEl.textContent = `Misiones ${done}/${MISSIONS.length}`; tabs.innerHTML = '';
     mB.innerHTML = MISSIONS.map(m => `<div class="mis ${S.missions[m.id] ? 'done' : ''}"><span class="ck">${S.missions[m.id] ? '✓' : ''}</span><span>${m.n}</span>${m.r ? `<span class="rw"><span class="coin" style="width:16px;height:16px"></span>${fmt(m.r)}</span>` : ''}</div>`).join('');
+  } else if (kind === 'guide') {
+    tEl.textContent = 'Guía del minero';
+    tabs.innerHTML = GUIDE_TABS.map(([k, n]) => `<button class="tab ${guideTab === k ? 'on' : ''}" data-act="gtab" data-t="${k}">${n}</button>`).join('');
+    mB.innerHTML = guideHTML();
   } else if (kind === 'settings') {
     tEl.textContent = 'Ajustes';
     tabs.innerHTML = SET_TABS.map(([k, n]) => `<button class="tab ${setTab === k ? 'on' : ''}" data-act="stab" data-t="${k}">${n}</button>`).join('');
@@ -1503,6 +1601,49 @@ function renderPanel(kind, tEl, tabs, mB) {
     mB.innerHTML = `<div class="big">${offlineMsg}</div><div class="center"><button class="btn gr" data-act="close">¡Genial!</button></div>`;
   }
 }
+// ---------- Guía ----------
+let guideTab = 'basics';
+const GUIDE_TABS = [['basics', 'Lo básico'], ['machines', 'Máquinas'], ['auto', 'Automatizar'], ['prog', 'Progreso']];
+const gImg = it => `<img class="gi" src="${iconURL('item', clone(it))}" alt="">`;
+const gB = type => `<img class="gi" src="${iconURL('b', { type })}" alt="">`;
+const gSec = (icon, title, text) => `<div class="gsec"><div class="gic">${icon}</div><div><b>${title}</b><p>${text}</p></div></div>`;
+function guideHTML() {
+  if (guideTab === 'basics') return `
+    ${gSec(gImg(vein('coal')), 'Picar vetas', 'Haz clic en una veta para picarla. Cada veta tiene una <b>dureza</b>: cuando la llenas de golpes suelta un trozo de mineral en una de las 8 casillas de alrededor. Si no queda sitio, la veta se bloquea (aparece un <b>!</b>).')}
+    ${gSec(gImg(ore('coal', 3)), 'Fusionar', 'Arrastra un trozo encima de otro <b>igual</b> para fusionarlos: pequeño → mediano → grande → <b>masivo</b>. Cada tamaño vale bastante más que dos del anterior.')}
+    ${gSec(gImg(vein('copper', 2)), 'Subir vetas de nivel', 'Dos vetas del mismo material y nivel se fusionan en una de nivel superior (máximo 5). Las vetas de nivel alto sueltan trozos más grandes y son algo más blandas.')}
+    ${gSec('<span class="gtxt">🪙</span>', 'Vender', 'Arrastra cualquier objeto a la <b>tienda</b> del enano para venderlo. También puedes vender todo lo que hay en un cofre o caja dorada con su botón <b>Vender todo</b>.')}
+    ${gSec('<span class="gtxt">⛏️</span>', 'Excavar', 'Haz clic en una roca pegada a la cueva para excavarla y ganar espacio. Cuanto más hondo, más cara. Algunas rocas esconden vetas nuevas: fíjate en los puntitos de color.')}
+    ${gSec('<span class="gtxt">🛒</span>', 'La tienda', 'Se abre a la derecha y puedes seguir jugando. Compra picos más fuertes, mejoras para taladros y embudos, vetas y planos. Arrastra vetas y planos directamente al tablero.')}`;
+  if (guideTab === 'machines') return `
+    <div class="mut" style="margin-bottom:8px">Los planos se pagan al colocarlos y luego hay que <b>entregarles materiales</b> (arrastrándolos encima o con embudos). R gira las máquinas.</div>
+    ${gSec(gB('blocker'), 'Bloqueador', 'Ocupa una casilla para que las vetas no suelten mineral ahí. Sirve para dirigir hacia dónde cae.')}
+    ${gSec(gB('chest'), 'Cofre', 'Guarda 12 objetos. Con <b>Filtro</b> eliges qué acepta: así puedes clasificar. Tiene botones para <b>vaciar</b> de uno en uno y <b>vender todo</b>.')}
+    ${gSec(gB('crate'), 'Caja dorada', 'Guarda una cantidad ilimitada de un solo tipo de objeto. Con el filtro decides qué tipo.')}
+    ${gSec(gB('drill'), 'Taladro', 'Pica solo la veta que tiene delante (la flecha). Tiene botón de <b>Parar</b>. Si la veta no tiene sitio para soltar mineral, se pone en pausa (luz amarilla) y sigue cuando hay hueco.')}
+    ${gSec(gB('furnace'), 'Horno', 'Mete <b>carbón</b> (combustible) y un mineral <b>masivo</b> de cobre, hierro u oro: lo funde en un <b>lingote</b> y lo saca por delante.')}
+    ${gSec(gB('funnel'), 'Embudo', 'Coge lo que hay <b>detrás</b> (suelo, cofre, horno...) y lo deja <b>delante</b>. Encadénalos para hacer cintas.')}
+    ${gSec(gB('corner'), 'Embudo en curva', 'Recibe por un <b>lateral</b> y saca por delante: sirve para girar las cintas 90°. R lo gira y <b>F</b> lo voltea (entrada por la izquierda o por la derecha).')}
+    ${gSec(gB('splitter'), 'Divisor', 'Coge lo de detrás y lo reparte alternando izquierda y derecha. Si un lado no acepta el objeto, usa el otro.')}
+    ${gSec(gB('compactor'), 'Compactador', 'Fusiona solo parejas de minerales iguales y saca el resultado por delante. Si se llena con 3 distintos se atasca.')}
+    ${gSec(gB('saw'), 'Sierra', 'Corta cada lingote en 4 <b>pepitas</b>, que juntas valen más que el lingote.')}
+    ${gSec(gB('seller'), 'Vendedor', 'Vende al instante todo lo que le llega. Ideal al final de una cadena.')}`;
+  if (guideTab === 'auto') return `
+    ${gSec('<span class="gtxt">➡️</span>', 'Cómo se mueven las cosas', 'Las vetas sueltan mineral en las casillas de alrededor, también <b>dentro</b> de máquinas que lo acepten (cofres, hornos, compactadores...). Los embudos y curvas solo aceptan lo que les llega por su entrada.')}
+    ${gSec(gB('drill') + gB('compactor'), 'Fusionar en automático', 'Rodea una veta de bloqueadores y deja un hueco con un <b>compactador</b>. Pon un taladro picando y encadena compactadores para llegar hasta masivo.')}
+    ${gSec(gB('furnace'), 'Fundir en automático', 'Lleva el carbón y el mineral masivo al horno con embudos. Saca los lingotes con otro embudo hacia una sierra, un cofre o un vendedor.')}
+    ${gSec(gB('chest'), 'Clasificar', 'Pon un <b>divisor</b> delante de dos cofres con filtros distintos: cada objeto irá al cofre que lo acepte. Las cajas con filtro rechazan lo demás.')}
+    ${gSec(gB('corner'), 'Girar cintas', 'Usa el embudo en curva para doblar las esquinas sin perder casillas. Combínalo con embudos rectos para llegar a cualquier sitio.')}
+    ${gSec('<span class="gtxt">💤</span>', 'Mientras no juegas', 'Las máquinas siguen trabajando hasta 1 hora aunque cierres el juego. La partida se guarda sola.')}`;
+  return `
+    ${gSec(gImg(ore('coal', 2)), '1. Carbón', 'Empiezas con una veta de carbón. Vende carbón masivo y excava hacia abajo.')}
+    ${gSec(gImg(ore('copper', 2)), '2. Cobre', 'Desbloquea el <b>cofre</b>, el <b>taladro</b> y las vetas de cobre en la tienda.')}
+    ${gSec(gImg(ore('iron', 2)), '3. Hierro', 'Desbloquea el <b>horno</b>. Funde tu primer lingote para desbloquear embudos, curvas, divisores y compactadores.')}
+    ${gSec(gImg(ore('gold', 2)), '4. Oro', 'Desbloquea la <b>sierra</b>, la <b>caja dorada</b> y el <b>vendedor</b>.')}
+    ${gSec(gImg(ore('galactium', 3)), '5. Galactium', 'Está en lo más hondo de la cueva. Fusiona hasta conseguir un <b>Galactium masivo</b> para completar el juego.')}
+    <div class="mut" style="margin-top:8px">Consulta las <b>misiones</b> (J) para ganar monedas extra por el camino.</div>`;
+}
+
 // ---------- Ajustes ----------
 let setTab = 'game';
 const SET_TABS = [['game', 'Juego'], ['audio', 'Sonido'], ['gfx', 'Gráficos'], ['ui', 'Interfaz'], ['ctrl', 'Controles'], ['data', 'Partida']];
@@ -1658,7 +1799,7 @@ const TUT = [
   { m: '¡Perfecto! Arrastra el carbón masivo hasta mi tienda para vendérmelo.', arrow: 'shop', until: () => S.stats.sold > 0 },
   { m: '¡Ya tienes monedas! Haz clic en una roca pegada a la cueva para excavarla y ganar espacio.', arrow: 'rock', until: () => S.stats.dug > 0 },
   { m: 'Más espacio, más producción. En mi tienda (clic en el puesto) tienes picos, vetas y planos de máquinas.', until: () => S.stats.shopOpened > 0 },
-  { m: 'Consejo: dos vetas iguales del mismo nivel se fusionan en una de nivel superior que suelta trozos más grandes. ¡Y dicen que hay cobre no muy lejos, hacia abajo!', click: true },
+  { m: 'Consejo: dos vetas iguales del mismo nivel se fusionan en una de nivel superior que suelta trozos más grandes. ¡Y dicen que hay cobre no muy lejos, hacia abajo! Si te pierdes, abre la guía (botón ? o tecla G).', click: true },
 ];
 let npcTimer = 0, npcText = '';
 function npcSay(txt, ms = 7000) { npcText = txt; npcTimer = ms / 1000; updateBubble(); }
@@ -1794,6 +1935,7 @@ function cancelDrag() {
   P.drag = null; P.dp = null; P.mode = null; P.down = false;
 }
 function rotateB(t) { t.b.dir = (t.b.dir + 1) % 4; t.b.fl = 0.6; snd('click'); refreshInfo(); }
+function flipB(t) { t.b.flip = t.b.flip ? 0 : 1; t.b.fl = 0.6; snd('click'); refreshInfo(); }
 function moveBuilding(src, dst) {
   if (!src || !src.b || !dst || dst === src) return;
   if (dst.ty !== 'floor' || dst.b || dst.item) { snd('err'); return; }
@@ -1811,7 +1953,6 @@ function dropItem(it, from, t) {
   if (!t) return back();
   if (t.ty === 'shop') { sell(it, wx, wy); burst(wx, wy, MATS[it.m].hi, 8, 110, { star: true, g: 120 }); tutCheck(); return; }
   if (t.b) {
-    if (t.b.type === 'filter' && !t.b.ghost && it.k !== 'vein') { t.b.filter = clone(it); t.b.fl = 1; toast('Filtro: ' + itemName(it)); refreshInfo(); return back(); }
     if (bAccepts(t, it)) { bInsert(t, it); if (!t.b.ghost) t.b.fl = 1; snd('land'); refreshInfo(); return; }
     snd('err'); return back();
   }
@@ -1828,7 +1969,7 @@ function dropItem(it, from, t) {
 }
 function clickTile(t) {
   if (!t) return;
-  if (place) { if (placeGhost(t, place.type, place.dir)) { sel = { x: t.x, y: t.y }; refreshInfo(); } return; }
+  if (place) { if (placeGhost(t, place.type, place.dir, place.flip)) { sel = { x: t.x, y: t.y }; refreshInfo(); } return; }
   if (mode === 'demolish') { if (t.b) demolish(t); return; }
   if (t.ty === 'shop') { if (S.tut >= 10) openShop(); else { sel = { x: t.x, y: t.y }; refreshInfo(); } return; }
   if (t.ty === 'rock') {
@@ -1854,6 +1995,15 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (k === 'r') {
     if (shopDrag && shopDrag.kind === 'build') { shopDrag.dir = (shopDrag.dir + 1) % 4; return; }
+  }
+  if (k === 'f') {
+    if (shopDrag && shopDrag.val === 'corner') { shopDrag.flip = shopDrag.flip ? 0 : 1; return; }
+    if (place && place.type === 'corner') { place.flip = place.flip ? 0 : 1; return; }
+    const t = tileAtScreen(P.x, P.y), s = sel && tile(sel.x, sel.y);
+    if (t && t.b && t.b.type === 'corner') flipB(t); else if (s && s.b && s.b.type === 'corner') flipB(s);
+    return;
+  }
+  if (k === 'r') {
     if (place && BDEF[place.type].dir) { place.dir = (place.dir + 1) % 4; return; }
     const t = tileAtScreen(P.x, P.y) || (sel && tile(sel.x, sel.y));
     if (t && t.b && BDEF[t.b.type].dir) rotateB(t);
@@ -1864,6 +2014,7 @@ addEventListener('keydown', e => {
   if (k === 'm') setMode('move');
   if (k === 'x') setMode('demolish');
   if (k === 'j') toggleSide('missions');
+  if (k === 'g') toggleSide('guide');
 });
 const keys = {};
 addEventListener('keydown', e => { if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return; keys[e.key.toLowerCase()] = true; });
@@ -1920,7 +2071,21 @@ document.addEventListener('click', e => {
       }
       break;
     }
-    case 'clrfilter': { const s = sel && tile(sel.x, sel.y); if (s && s.b) { s.b.filter = null; refreshInfo(); } break; }
+    case 'ftog': {
+      const s = sel && tile(sel.x, sel.y); if (!s || !isBox(s.b)) break;
+      const f = s.b.flt || (s.b.flt = []), k = el.dataset.k, i = f.indexOf(k);
+      i >= 0 ? f.splice(i, 1) : f.push(k);
+      s.b.fl = 0.6; refreshInfo(); break;
+    }
+    case 'fopen': filterOpen = !filterOpen; refreshInfo(); break;
+    case 'flip': { const s = sel && tile(sel.x, sel.y); if (s && s.b && s.b.type === 'corner') flipB(s); break; }
+    case 'drilltog': {
+      const s = sel && tile(sel.x, sel.y);
+      if (s && s.b && s.b.type === 'drill') { s.b.off = !s.b.off; s.b.fl = 0.6; snd('click'); refreshInfo(); }
+      break;
+    }
+    case 'guide': toggleSide('guide'); break;
+    case 'gtab': guideTab = el.dataset.t; $('sB').scrollTop = 0; refreshPanels(); break;
     // ajustes
     case 'stab': setTab = el.dataset.t; $('sB').scrollTop = 0; refreshPanels(); break;
     case 'stog': {
@@ -2011,7 +2176,7 @@ function endShopDrag(e) {
   if (under !== cv) return; // soltado sobre el panel: cancelar
   const t = tileAtScreen(e.clientX, e.clientY);
   if (d.kind === 'build') {
-    if (placeGhost(t, d.val, d.dir)) { sel = { x: t.x, y: t.y }; refreshInfo(); }
+    if (placeGhost(t, d.val, d.dir, d.flip)) { sel = { x: t.x, y: t.y }; refreshInfo(); }
   } else buyVeinAt(t, d.val);
   refreshPanels();
 }
@@ -2263,7 +2428,7 @@ function render(dt) {
   if (place && hov) {
     const ok = hov.ty === 'floor' && !hov.item && !hov.b;
     g.save(); g.globalAlpha = 0.22 + Math.sin(time * 6) * 0.06; g.fillStyle = ok ? '#4fc44f' : '#e0533d'; g.fillRect(hov.x * T, hov.y * T, T, T); g.restore();
-    drawBuilding(g, hov, { type: place.type, dir: place.dir, ghost: true, need: [] }, time, 0.6);
+    drawBuilding(g, hov, { type: place.type, dir: place.dir, flip: place.flip, ghost: true, need: [] }, time, 0.6);
   }
   if (mode === 'demolish' && hov && hov.b) { g.save(); g.globalAlpha = 0.25 + Math.sin(time * 8) * 0.08; g.fillStyle = '#e0533d'; g.fillRect(hov.x * T, hov.y * T, T, T); g.restore(); }
   if (mode === 'move' && hov && hov.b) { g.strokeStyle = '#7fc8ff'; g.lineWidth = 3; g.strokeRect(hov.x * T + 3, hov.y * T + 3, T - 6, T - 6); }
@@ -2277,7 +2442,7 @@ function render(dt) {
     const a = 0.22 + Math.sin(time * 8) * 0.07;
     g.save(); g.globalAlpha = a; g.fillStyle = ok ? '#4fc44f' : '#e0533d'; g.fillRect(hov.x * T, hov.y * T, T, T); g.restore();
     g.strokeStyle = ok ? '#8ff08f' : '#ff8f7a'; g.lineWidth = 2.5; g.strokeRect(hov.x * T + 2, hov.y * T + 2, T - 4, T - 4);
-    if (d.kind === 'build') drawBuilding(g, hov, { type: d.val, dir: d.dir, ghost: true, need: [] }, time, 0.7);
+    if (d.kind === 'build') drawBuilding(g, hov, { type: d.val, dir: d.dir, flip: d.flip, ghost: true, need: [] }, time, 0.7);
     else { g.save(); g.globalAlpha = 0.75; drawItem(g, vein(d.val), hov.x * T + T / 2, hov.y * T + T / 2 - 6 - Math.abs(Math.sin(time * 6)) * 4, 1, time); g.restore(); }
   }
   // golpes de pico
