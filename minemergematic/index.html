@@ -46,6 +46,11 @@ button{font-family:'Lilita One','Nunito',sans-serif;cursor:pointer;border:none;c
 .chip{display:flex;align-items:center;gap:3px;background:#2a170a;border-radius:5px;padding:2px 6px 2px 2px;font-size:12px}
 .chip img{width:22px;height:22px;image-rendering:auto}
 .btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+#infoBtns{margin:6px 2px 2px}
+#infoBtns:empty{display:none}
+.btn .coin{width:15px;height:15px;border-width:1.5px;display:inline-block;vertical-align:-2px;margin-right:3px}
+.btn.pulse{animation:btnPulse .9s ease-in-out infinite}
+@keyframes btnPulse{50%{filter:brightness(1.25)}}
 .btn{padding:6px 10px;border-radius:6px;font-size:14px;background:var(--blue);border:2px solid #1d4a8a;box-shadow:0 3px 0 #163a6c}
 .btn.gr{background:#3fae3f;border-color:#256e25;box-shadow:0 3px 0 #1d561d}
 .btn.rd{background:#c9452f;border-color:#7d2a1c;box-shadow:0 3px 0 #5e1f15}
@@ -196,7 +201,7 @@ kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-
   <button class="tb" data-act="settings" title="Ajustes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
 </div>
 
-<div id="info" class="panel hidden"><div id="infoT" class="ttl"></div><div id="infoB" class="inner"></div></div>
+<div id="info" class="panel hidden"><div id="infoT" class="ttl"></div><div id="infoB" class="inner"></div><div id="infoBtns" class="btns"></div></div>
 <div id="bubble" class="hidden"></div>
 <div id="tip" class="hidden"></div>
 <div id="hint" class="panel hidden"></div>
@@ -604,6 +609,18 @@ function pushTo(x, y, it, fx, fy) {
   if (t.ty === 'floor' && !t.item) { t.item = it; it.ox = (fx - x) * T; it.oy = (fy - y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 110; return true; }
   return false;
 }
+function freeNear(x0, y0) {
+  const seen = new Set([y0 * W + x0]), q = [[x0, y0]];
+  while (q.length) {
+    const [x, y] = q.shift(), t = tile(x, y);
+    if (t && t.ty === 'floor' && !t.item && !t.b) return t;
+    for (let d = 0; d < 4; d++) {
+      const nx = x + DX[d], ny = y + DY[d], n = tile(nx, ny);
+      if (n && (n.ty === 'floor' || n.ty === 'shop') && !seen.has(ny * W + nx)) { seen.add(ny * W + nx); q.push([nx, ny]); }
+    }
+  }
+  return null;
+}
 function dropNear(x0, y0, it) {
   const seen = new Set([y0 * W + x0]), q = [[x0, y0]];
   while (q.length) {
@@ -615,6 +632,66 @@ function dropNear(x0, y0, it) {
     }
   }
   return false;
+}
+// ---------- Cajas: vaciar de uno en uno y vender ----------
+const isBox = b => b && !b.ghost && (b.type === 'chest' || b.type === 'crate');
+function boxCount(b) { return b.type === 'chest' ? b.inv.length : b.n; }
+function boxValue(b) { return b.type === 'chest' ? b.inv.reduce((a, it) => a + itemValue(it), 0) : (b.m ? b.n * itemValue(b.m) : 0); }
+let emptying = null; // {x, y, acc}
+function boxTakeOne(b) {
+  if (b.type === 'chest') return b.inv.shift() || null;
+  if (!b.n) return null;
+  b.n--; const it = clone(b.m); if (!b.n) b.m = null; return it;
+}
+function boxPutBack(b, it) { if (b.type === 'chest') b.inv.unshift(it); else { if (!b.m) b.m = clone(it); b.n++; } }
+// Saca un objeto de la caja y lo lanza a la casilla libre más cercana
+function emptyOne(t) {
+  if (!t || !isBox(t.b)) return false;
+  const it = boxTakeOne(t.b);
+  if (!it) return false;
+  const dst = freeNear(t.x, t.y);
+  if (!dst) { boxPutBack(t.b, it); toast('No queda sitio libre alrededor'); snd('err'); return false; }
+  dst.item = it;
+  it.ox = (t.x - dst.x) * T; it.oy = (t.y - dst.y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 240;
+  t.b.fl = 1;
+  burst(t.x * T + T / 2, t.y * T + T / 3, MATS[it.m].hi, 3, 70, { star: true, g: 100 });
+  snd('spawn');
+  refreshInfo();
+  return boxCount(t.b) > 0;
+}
+function toggleEmpty(t) {
+  if (emptying && emptying.x === t.x && emptying.y === t.y) { emptying = null; refreshInfo(); return; }
+  emptying = { x: t.x, y: t.y, acc: 0.2 };
+  refreshInfo();
+}
+function tickEmpty(dt) {
+  if (!emptying) return;
+  emptying.acc += dt;
+  while (emptying && emptying.acc >= 0.2) {
+    emptying.acc -= 0.2;
+    if (!emptyOne(tile(emptying.x, emptying.y))) { emptying = null; refreshInfo(); }
+  }
+}
+function sellBox(t) {
+  const b = t.b;
+  if (!isBox(b) || !boxCount(b)) return;
+  const total = boxValue(b), n = boxCount(b);
+  if (b.type === 'chest') {
+    b.inv.forEach(it => { if (it.k === 'ore' && it.t === 3 && it.m === 'coal') S.stats.soldMassive++; });
+    b.inv.length = 0;
+  } else {
+    if (b.m.k === 'ore' && b.m.t === 3 && b.m.m === 'coal') S.stats.soldMassive += b.n;
+    b.n = 0; b.m = null;
+  }
+  if (emptying && emptying.x === t.x && emptying.y === t.y) emptying = null;
+  S.coins += total; S.stats.sold += n; S.stats.earned += total;
+  const cx = t.x * T + T / 2, cy = t.y * T + T / 2;
+  floatTxt(cx, cy - 18, '+' + fmt(total), '#ffd65a', 22);
+  coinFly(cx, cy, clamp(Math.round(n / 2) + 3, 3, 14));
+  burst(cx, cy, '#ffd65a', 12, 140, { star: true, g: 140 }); ring(cx, cy, '#ffd65a', 46);
+  b.fl = 1; shake(3);
+  snd('coin');
+  refreshInfo();
 }
 function dropOrSell(x, y, it) { if (!dropNear(x, y, it)) { S.coins += itemValue(it); } }
 
@@ -1251,7 +1328,8 @@ function renderInfo() {
   const box = $('info');
   const t = sel ? tile(sel.x, sel.y) : null;
   if (!t) { box.classList.add('hidden'); return; }
-  let title = '', body = '';
+  let title = '', body = '', btns = '';
+  if (renderInfo.lastBtns && !t.b) { renderInfo.lastBtns = ''; $('infoBtns').innerHTML = ''; }
   if (t.b) {
     const b = t.b, def = BDEF[b.type];
     title = def.n + (b.ghost ? ' (plano)' : '');
@@ -1264,11 +1342,13 @@ function renderInfo() {
       switch (b.type) {
         case 'chest':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Contenido</span><span>${b.inv.length}/12</span></div><div class="chips">`;
-          b.inv.forEach((it, i) => body += `<span class="chip" data-act="takeinv" data-i="${i}" style="cursor:pointer" title="Sacar">${itemImg(it)}</span>`);
+          b.inv.forEach((it, i) => body += `<span class="chip" data-act="takeinv" data-i="${i}" style="cursor:pointer" title="Sacar este">${itemImg(it)}</span>`);
           body += '</div>';
+          if (b.inv.length) body += `<div class="row" style="margin-top:4px"><span class="lbl">Valor total</span><span class="y">${fmt(boxValue(b))}</span></div><div class="mut">Pulsa un objeto para sacarlo.</div>`;
           break;
         case 'crate':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Contenido</span><span>${b.m ? fmt(b.n) + ' × ' + itemName(b.m) : 'Vacía'}</span></div>`;
+          if (b.m) body += `<div class="row"><span class="lbl">Valor total</span><span class="y">${fmt(boxValue(b))}</span></div>`;
           break;
         case 'furnace':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Combustible</span><span>${b.fuel} (4 por lingote)</span></div>`;
@@ -1293,11 +1373,14 @@ function renderInfo() {
           break;
       }
     }
-    body += '<div class="btns">';
-    if (def.dir) body += '<button class="btn br" data-act="rot">Girar (R)</button>';
-    if (b.type === 'chest' && !b.ghost && b.inv.length) body += '<button class="btn br" data-act="empty">Vaciar</button>';
-    if (b.type === 'filter' && !b.ghost && b.filter) body += '<button class="btn br" data-act="clrfilter">Quitar filtro</button>';
-    body += '<button class="btn rd" data-act="demo">Demoler</button></div>';
+    if (def.dir) btns += '<button class="btn br" data-act="rot">Girar (R)</button>';
+    if (isBox(b) && boxCount(b)) {
+      const on = emptying && emptying.x === t.x && emptying.y === t.y;
+      btns += `<button class="btn br ${on ? 'pulse' : ''}" data-act="empty">${on ? 'Parar' : 'Vaciar'}</button>`;
+      btns += '<button class="btn gr" data-act="sellbox"><span class="coin"></span>Vender todo</button>';
+    }
+    if (b.type === 'filter' && !b.ghost && b.filter) btns += '<button class="btn br" data-act="clrfilter">Quitar filtro</button>';
+    btns += '<button class="btn rd" data-act="demo">Demoler</button>';
   } else if (t.item) {
     const it = t.item;
     title = itemName(it);
@@ -1330,6 +1413,7 @@ function renderInfo() {
     $('infoT').textContent = title;
     $('infoB').innerHTML = body;
   }
+  if (btns !== renderInfo.lastBtns) { renderInfo.lastBtns = btns; $('infoBtns').innerHTML = btns; }
   box.classList.remove('hidden');
 }
 
@@ -1822,8 +1906,20 @@ document.addEventListener('click', e => {
     case 'place': place = { type: el.dataset.t, dir: 0 }; mode = null; updateHint(); updateTools(); break;
     case 'rot': { const s = sel && tile(sel.x, sel.y); if (s && s.b) rotateB(s); break; }
     case 'demo': { const s = sel && tile(sel.x, sel.y); if (s && s.b) demolish(s); break; }
-    case 'empty': { const s = sel && tile(sel.x, sel.y); if (s && s.b && s.b.inv) { const inv = s.b.inv.splice(0); inv.forEach(it => dropOrSell(s.x, s.y, it)); refreshInfo(); } break; }
-    case 'takeinv': { const s = sel && tile(sel.x, sel.y); if (s && s.b && s.b.inv) { const it = s.b.inv.splice(+el.dataset.i, 1)[0]; if (it) dropOrSell(s.x, s.y, it); refreshInfo(); } break; }
+    case 'empty': { const s = sel && tile(sel.x, sel.y); if (s && isBox(s.b)) toggleEmpty(s); break; }
+    case 'sellbox': { const s = sel && tile(sel.x, sel.y); if (s && isBox(s.b)) sellBox(s); break; }
+    case 'takeinv': {
+      const s = sel && tile(sel.x, sel.y);
+      if (s && s.b && s.b.inv) {
+        const i = +el.dataset.i, it = s.b.inv[i], dst = it && freeNear(s.x, s.y);
+        if (!it) break;
+        if (!dst) { toast('No queda sitio libre alrededor'); snd('err'); break; }
+        s.b.inv.splice(i, 1); dst.item = it;
+        it.ox = (s.x - dst.x) * T; it.oy = (s.y - dst.y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 240;
+        s.b.fl = 1; snd('spawn'); refreshInfo();
+      }
+      break;
+    }
     case 'clrfilter': { const s = sel && tile(sel.x, sel.y); if (s && s.b) { s.b.filter = null; refreshInfo(); } break; }
     // ajustes
     case 'stab': setTab = el.dataset.t; $('sB').scrollTop = 0; refreshPanels(); break;
@@ -2046,6 +2142,7 @@ function frame(now) {
   if (saveAcc >= 10) { saveAcc = 0; save(); }
   if (infoAcc >= 0.25 || infoDirty) { infoAcc = 0; renderInfo(); }
   musicTick();
+  tickEmpty(dt);
   // contador de monedas animado
   const diff = S.coins - dispCoins;
   dispCoins = Math.abs(diff) < 1 ? S.coins : dispCoins + diff * (1 - Math.exp(-dt * 9));
