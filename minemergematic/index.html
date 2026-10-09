@@ -254,7 +254,7 @@ kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-
 <div id="tip" class="hidden"></div>
 <div id="hint" class="panel hidden"></div>
 <div id="toasts"></div>
-<div id="pauseOv" class="hidden"><div class="pbox panel"><div class="ttl">En pausa</div><p>El juego se ha detenido porque has salido. No gasta recursos mientras tanto.</p><p class="mut">Tus máquinas seguirán trabajando cuando vuelvas (hasta 1 hora).</p><button class="btn gr" data-act="resume">Continuar</button></div></div>
+<div id="pauseOv" class="hidden"><div class="pbox panel"><div class="ttl">En pausa</div><p>El juego se ha detenido porque has salido. Mientras está en pausa no avanza nada ni gasta recursos.</p><p class="mut">Todo sigue tal y como lo dejaste.</p><button class="btn gr" data-act="resume">Continuar</button></div></div>
 <aside id="side" class="panel" aria-label="Panel lateral"><div class="shead"><span id="sT" class="ttl"></span><button class="x" data-act="sclose" title="Cerrar (Esc)">✕</button></div><div class="tabs" id="sTabs"></div><div id="sB" class="mbody inner"></div><div id="sFoot" class="sfoot"></div></aside>
 <div id="dragChip" class="hidden"><img alt=""><span></span></div>
 <div id="modal" class="hidden"><div class="mbox panel"><div class="mhead"><span id="mT" class="ttl"></span><button class="x" data-act="close">✕</button></div><div class="tabs" id="mTabs"></div><div id="mB" class="mbody inner"></div></div></div>
@@ -404,7 +404,7 @@ function newState() {
     tut: 0, disc: { coal: true }, flags: {}, built: {}, bought: {}, missions: {},
     stats: { mined: 0, merges: 0, sold: 0, dug: 0, soldMassive: 0, maxVein: 1, earned: 0, shopOpened: 0, play: 0 },
     set: {
-      auto: false, chosen: false, autoSpeed: 7, digTip: true, autoPause: true,
+      auto: false, chosen: false, autoSpeed: 7, digTip: true,
       sound: true, vol: 0.7, music: false, musicVol: 0.4,
       smooth: true, fx: 1, shake: true, floats: true, coinFly: true, grid: false, hq: true, fps: 0,
       ui: 1, infoPos: 'bl', infoX: 10, infoY: 300, camSpeed: 1, invZoom: false,
@@ -1951,9 +1951,6 @@ function renderPanel(kind, tEl, tabs, mB) {
     mB.innerHTML = `<div class="big">¡Lo has conseguido! Has encontrado y fusionado el legendario <b>Galactium</b> en lo más hondo de la Cueva 261.<br><br>
       Excavadas: <b>${S.stats.dug}</b> · Fusiones: <b>${fmt(S.stats.merges)}</b> · Ganado: <b>${fmt(S.stats.earned)}</b></div>
       <div class="center"><button class="btn gr" data-act="close">Seguir jugando</button></div>`;
-  } else if (kind === 'offline') {
-    tEl.textContent = '¡Bienvenido de nuevo!'; tabs.innerHTML = '';
-    mB.innerHTML = `<div class="big">${offlineMsg}</div><div class="center"><button class="btn gr" data-act="close">¡Genial!</button></div>`;
   }
 }
 // ---------- Guía ----------
@@ -1996,7 +1993,7 @@ function guideHTML() {
     ${gSec(gB('furnace'), 'Fundir en automático', 'Lleva el carbón y el mineral masivo al horno con embudos. Saca los lingotes con otro embudo hacia una sierra, un cofre o un vendedor.')}
     ${gSec(gB('chest'), 'Clasificar', 'Pon un <b>divisor</b> delante de dos cofres con filtros distintos: cada objeto irá al cofre que lo acepte. Las cajas con filtro rechazan lo demás.')}
     ${gSec(gB('corner'), 'Girar cintas', 'Usa el embudo en curva para doblar las esquinas sin perder casillas. Combínalo con embudos rectos para llegar a cualquier sitio.')}
-    ${gSec('<span class="gtxt">💤</span>', 'Mientras no juegas', 'Las máquinas siguen trabajando hasta 1 hora aunque cierres el juego. La partida se guarda sola.')}`;
+    ${gSec('<span class="gtxt">💤</span>', 'Mientras no juegas', 'Nada avanza si no estás jugando: al salir de la pestaña el juego se pausa hasta que pulses <b>Continuar</b>, y al cerrarlo se queda exactamente como estaba. La partida se guarda sola.')}`;
   return `
     ${gSec(gImg(ore('coal', 2)), '1. Carbón', 'Empiezas con una veta de carbón. Vende carbón masivo y excava hacia abajo.')}
     ${gSec(gImg(ore('copper', 2)), '2. Cobre', 'Desbloquea el <b>cofre</b>, el <b>taladro</b> y las vetas de cobre en la tienda.')}
@@ -2054,7 +2051,7 @@ function settingsHTML() {
       ${sRange('autoSpeed', 'Velocidad del auto-clic', 3, 15, 1)}
       <div class="sgrp">Ayudas</div>
       ${sTog('digTip', 'Mostrar coste al pasar por la roca', 'Etiqueta con el precio de excavar junto al cursor.')}
-      ${sTog('autoPause', 'Pausar al salir del juego', 'Si cambias de pestaña o de ventana, el juego se detiene para no gastar recursos.')}`;
+`;
     case 'audio': return `<div class="sgrp">Efectos</div>
       ${sTog('sound', 'Efectos de sonido')}
       ${sRange('vol', 'Volumen de efectos', 0, 1, 0.05)}
@@ -2866,21 +2863,10 @@ function star(g, x, y, s) {
 const easeOutBack = x => 1 + 2.70158 * Math.pow(x - 1, 3) + 1.70158 * Math.pow(x - 1, 2);
 
 // ---------- Pausa automática al salir del juego ----------
-let paused = false, pausedAt = 0, loopOn = false;
-// Simula de golpe el tiempo que el juego estuvo cerrado o en pausa (máximo 1 hora)
-function catchUp(ms) {
-  const ticks = Math.min(Math.floor(ms / TICK), 36000);
-  if (ticks <= 0) return { mins: 0, gained: 0 };
-  const c0 = S.coins;
-  offlineSim = true;
-  for (let i = 0; i < ticks; i++) tick();
-  offlineSim = false;
-  for (const t of G) { if (t.item) clearAnim(t.item); if (t.b) clearAnim(t.b); }
-  return { mins: Math.round(ticks * TICK / 60000), gained: S.coins - c0 };
-}
+let paused = false, loopOn = false;
 function pauseGame() {
-  if (paused || !S || !S.set.autoPause || resetting) return;
-  paused = true; pausedAt = Date.now();
+  if (paused || !S || resetting) return;
+  paused = true;
   if (P.mode === 'drag') cancelDrag();
   P.down = false; P.mode = null; for (const k in keys) keys[k] = false;
   save();
@@ -2892,14 +2878,12 @@ function resumeGame() {
   paused = false;
   $('pauseOv').classList.add('hidden');
   if (AC && AC.state === 'suspended') AC.resume();
-  const r = catchUp(Date.now() - pausedAt);
-  if (r.gained > 0 && r.mins >= 1) toast(`Mientras no estabas (${r.mins} min): +${fmt(r.gained)} monedas`);
-  dispCoins = S.coins;
   if (!loopOn) { loopOn = true; requestAnimationFrame(t => { lastT = t; frame(t); }); }
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); else if (document.hasFocus()) resumeGame(); });
+// Al salir se pausa; para seguir hay que pulsar «Continuar» (o Intro / espacio)
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
 addEventListener('blur', () => pauseGame());
-addEventListener('focus', () => resumeGame());
+addEventListener('keydown', e => { if (paused && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); resumeGame(); } });
 
 // ---------- Bucle principal ----------
 let lastT = performance.now(), acc = 0, secAcc = 0, saveAcc = 0, time = 0, infoAcc = 0, resetting = false;
@@ -3260,7 +3244,6 @@ function floatHint(g, x, y, txt) {
 }
 
 // ---------- Arranque ----------
-let offlineMsg = '';
 function init() {
   resize();
   addEventListener('resize', resize);
@@ -3272,18 +3255,7 @@ function init() {
   cam.tz = cam.z;
   clampCam();
   dispCoins = S.coins;
-  // progreso sin conexión
-  if (had) {
-    const away = Date.now() - (S.last || Date.now());
-    const ticks = Math.min(Math.floor(away / TICK), 36000);
-    const hasAuto = G.some(t => t.b && !t.b.ghost && t.b.type !== 'blocker' && t.b.type !== 'chest' && t.b.type !== 'crate');
-    if (ticks > 600 && hasAuto) {
-      const r = catchUp(away);
-      parts.length = 0; floats.length = 0; rings.length = 0; flyers.length = 0;
-      offlineMsg = `Tus máquinas han trabajado <b>${r.mins} min</b> mientras no estabas.` + (r.gained > 0 ? `<br>Has ganado <b>${fmt(r.gained)}</b> monedas.` : '<br>Revisa tus cofres y cajas: ¡están más llenos!');
-      openModal('offline');
-    }
-  }
+  // La partida continúa exactamente donde se dejó: no se simula el tiempo que el juego estuvo cerrado
   if (!S.set.chosen) openModal('clickmode');
   updateTools(); updateHint(); updateBubble();
   addEventListener('beforeunload', () => { if (!resetting) save(); });
