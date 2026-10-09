@@ -117,19 +117,30 @@ button{font-family:'Lilita One','Nunito',sans-serif;cursor:pointer;border:none;c
 .toast{background:#2a170aee;border:2px solid #f5c542;border-radius:8px;padding:6px 14px;font-family:'Lilita One';font-size:14px;animation:tin .25s ease-out}
 @keyframes tin{from{opacity:0;transform:translateY(-8px)}}
 /* Escala de interfaz y posición del panel */
-#coins,#misBtn,#tools,#info,#hint,#toasts,#side{zoom:var(--ui,1)}
+#coins,#lbtns,#lside,#tools,#info,#hint,#toasts,#side{zoom:var(--ui,1)}
+#lbtns{position:fixed;top:50px;left:10px;z-index:9;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+/* Panel izquierdo: misiones y ayuda, se despliega desde sus botones */
+#lside{position:fixed;top:128px;left:10px;width:min(440px,calc(100vw - 20px));max-height:calc(100vh - 140px);z-index:8;display:flex;flex-direction:column;padding:8px;
+  transform-origin:24px -40px;transform:scale(.55);opacity:0;visibility:hidden;
+  transition:transform .32s cubic-bezier(.2,1.25,.4,1),opacity .18s,visibility 0s .32s;box-shadow:inset 0 0 0 2px #a8744a,6px 8px 24px rgba(0,0,0,.5)}
+#lside.open{transform:none;opacity:1;visibility:visible;transition:transform .36s cubic-bezier(.2,1.25,.4,1),opacity .18s,visibility 0s}
+#lside::before{content:'';position:absolute;top:-11px;left:var(--notch,26px);border:9px solid transparent;border-top:0;border-bottom:11px solid var(--wood-dd);transition:left .25s}
+#lside::after{content:'';position:absolute;top:-6px;left:calc(var(--notch,26px) + 3px);border:6px solid transparent;border-top:0;border-bottom:8px solid var(--wood)}
+#lB{flex:1;overflow:auto;padding:10px;min-height:0;overscroll-behavior:contain}
+#lside .mis{font-size:15px;padding:9px 11px}
+#lside .gsec p{font-size:14px}
 #pauseOv{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:rgba(10,7,5,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:fadeIn .2s ease-out}
 #pauseOv .pbox{width:min(360px,calc(100vw - 32px));padding:16px 18px;text-align:center;animation:popIn .3s cubic-bezier(.2,1.5,.4,1)}
 #pauseOv .ttl{font-size:26px;margin-bottom:6px}
 #pauseOv p{font-size:14px;line-height:1.45;margin-bottom:8px}
 #pauseOv .btn{margin-top:6px;font-size:17px;padding:8px 22px}
-#misBtn{position:fixed;top:50px;left:10px;z-index:5;display:flex;align-items:center;gap:6px;padding:5px 12px 5px 8px;border-radius:16px;
+.hudbtn{display:flex;align-items:center;gap:6px;padding:5px 12px 5px 8px;border-radius:16px;
   background:var(--wood);border:3px solid var(--wood-dd);box-shadow:inset 0 0 0 2px #a8744a,0 3px 0 rgba(0,0,0,.45);font-size:15px;transition:transform .12s,filter .12s}
-#misBtn svg{width:18px;height:18px;fill:none;stroke:var(--cream);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.hudbtn svg{width:18px;height:18px;fill:none;stroke:var(--cream);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 #misBtn b{font-family:'Nunito';font-weight:900;font-size:12px;background:#3b2412;border-radius:10px;padding:1px 7px;color:#ffd65a}
-#misBtn:hover{transform:translateY(-2px);filter:brightness(1.12)}
-#misBtn.on{background:#c98a3e;box-shadow:inset 0 0 0 2px #ffd28a,0 3px 0 rgba(0,0,0,.45)}
-#misBtn[disabled]{opacity:.35;pointer-events:none}
+.hudbtn:hover{transform:translateY(-2px);filter:brightness(1.12)}
+.hudbtn.on{background:#c98a3e;box-shadow:inset 0 0 0 2px #ffd28a,0 3px 0 rgba(0,0,0,.45)}
+.hudbtn[disabled]{opacity:.35;pointer-events:none}
 #misBtn.pop{animation:misPop .5s cubic-bezier(.3,1.6,.5,1)}
 @keyframes misPop{40%{transform:scale(1.15)}}
 body.info-moving #info{outline:3px dashed #7fc8ff;outline-offset:3px;cursor:grab;touch-action:none}
@@ -163,7 +174,7 @@ body.shopdrag,body.shopdrag *{cursor:grabbing!important}
 #dragChip.board img{opacity:0;transform:scale(.6)}
 #dragChip.bad span{color:#ff8f7a}
 #coins{transition:transform .08s ease-out;transform-origin:left center}
-body.info-tl #info{top:96px;bottom:auto}
+body.info-tl #info{top:134px;bottom:auto}
 body.info-off #info{display:none!important}
 /* Animaciones de interfaz */
 #modal{animation:fadeIn .16s ease-out}
@@ -222,12 +233,15 @@ kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-
 <canvas id="c"></canvas>
 
 <div id="coins"><div class="coin"></div><span id="coinsN">0</span></div>
-<button id="misBtn" data-act="missions" title="Misiones (J)"><svg viewBox="0 0 24 24"><path d="M5 3h11a3 3 0 0 1 3 3v15H8a3 3 0 0 1-3-3z"/><path d="M5 18a3 3 0 0 1 3-3h11M9 7h6M9 10h6"/></svg><span>Misiones</span><b id="misCount"></b></button>
+<div id="lbtns">
+  <button id="misBtn" class="hudbtn" data-act="missions" title="Misiones (J)"><svg viewBox="0 0 24 24"><path d="M5 3h11a3 3 0 0 1 3 3v15H8a3 3 0 0 1-3-3z"/><path d="M5 18a3 3 0 0 1 3-3h11M9 7h6M9 10h6"/></svg><span>Misiones</span><b id="misCount"></b></button>
+  <button id="guideBtn" class="hudbtn" data-act="guide" title="Ayuda (G)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.3-2.7 4"/><circle cx="12" cy="17.6" r=".6" fill="currentColor"/></svg><span>Ayuda</span></button>
+</div>
+<aside id="lside" class="panel" aria-label="Panel izquierdo"><div class="shead"><span id="lT" class="ttl"></span><button class="x" data-act="lclose" title="Cerrar (Esc)">✕</button></div><div class="tabs" id="lTabs"></div><div id="lB" class="mbody inner"></div></aside>
 
 <div id="tools">
   <button class="tb" data-act="shop" title="Tienda (B)"><svg viewBox="0 0 24 24"><path d="M3 4h2.5l2.2 10.5h10.6L20.5 7H7"/><circle cx="9.5" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg></button>
   <button class="tb" data-act="rotate" title="Girar (R)"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v5h-5"/></svg></button>
-  <button class="tb" data-act="guide" title="Guía (G)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.3-2.7 4"/><circle cx="12" cy="17.6" r=".6" fill="currentColor"/></svg></button>
   <button class="tb" data-act="settings" title="Ajustes (Esc)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.3"/><path d="M19.4 13.5a7.7 7.7 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.6 7.6 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.7 7.7 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.6 7.6 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg></button>
 </div>
 
@@ -1670,7 +1684,8 @@ function updateTools() {
   });
   const tutLock = S.tut < 8;
   document.querySelectorAll('.tb').forEach(b => { if (b.dataset.act !== 'settings') b.disabled = tutLock; });
-  $('misBtn').disabled = tutLock; $('misBtn').classList.toggle('on', sideKind === 'missions');
+  $('misBtn').disabled = tutLock; $('misBtn').classList.toggle('on', lsideKind === 'missions');
+  $('guideBtn').classList.toggle('on', lsideKind === 'guide');
   updateMisBtn();
 }
 function updateHint() {
@@ -1852,7 +1867,24 @@ function renderSide() {
   b.scrollTop = sc;
   $('sFoot').textContent = sideKind === 'shop' && shopTab !== 'tools' ? 'Arrastra el icono al tablero para colocarlo donde quieras · o pulsa el precio' : '';
 }
-function refreshPanels() { if (sideKind) renderSide(); if (modalKind) renderModal(); }
+let lsideKind = null;
+function openLeft(kind) {
+  lsideKind = kind;
+  const el = $('lside');
+  el.style.setProperty('--notch', kind === 'guide' ? '26px' : '26px');
+  el.style.transformOrigin = kind === 'guide' ? '24px -12px' : '24px -46px';
+  el.classList.add('open'); $('lB').scrollTop = 0;
+  renderLeft(); updateTools();
+}
+function closeLeft() { lsideKind = null; $('lside').classList.remove('open'); updateTools(); }
+function toggleLeft(kind) { lsideKind === kind ? closeLeft() : openLeft(kind); }
+function renderLeft() {
+  if (!lsideKind) return;
+  const b = $('lB'), sc = b.scrollTop;
+  renderPanel(lsideKind, $('lT'), $('lTabs'), b);
+  b.scrollTop = sc;
+}
+function refreshPanels() { if (sideKind) renderSide(); if (lsideKind) renderLeft(); if (modalKind) renderModal(); }
 function priceHTML(c) { return `<span class="price"><span class="coin"></span>${fmt(c)}</span>`; }
 function veinPrice(m) { return Math.round(MATS[m].vein * Math.pow(1.25, S.bought[m] || 0)); }
 function renderModal() { if (modalKind) renderPanel(modalKind, $('mT'), $('mTabs'), $('mB')); }
@@ -2171,7 +2203,7 @@ function checkMissions() {
     if (!S.missions[m.id] && m.c()) {
       S.missions[m.id] = true; S.coins += m.r;
       toast('✓ Misión: ' + m.n + (m.r ? '  +' + fmt(m.r) : ''));
-      if (sideKind === 'missions') renderSide();
+      if (lsideKind === 'missions') renderLeft();
       updateMisBtn(); const mb = $('misBtn'); mb.classList.remove('pop'); void mb.offsetWidth; mb.classList.add('pop');
       snd('coin');
     }
@@ -2191,7 +2223,7 @@ const TUT = [
   { m: '¡Perfecto! Arrastra el carbón masivo hasta mi tienda para vendérmelo.', arrow: 'shop', until: () => S.stats.sold > 0 },
   { m: '¡Ya tienes monedas! Haz clic en una roca pegada a la cueva para excavarla y ganar espacio.', arrow: 'rock', until: () => S.stats.dug > 0 },
   { m: 'Más espacio, más producción. En mi tienda (clic en el puesto) tienes picos, vetas y planos de máquinas.', until: () => S.stats.shopOpened > 0 },
-  { m: 'Consejo: dos vetas iguales del mismo nivel se fusionan en una de nivel superior que suelta trozos más grandes. ¡Y dicen que hay cobre no muy lejos, hacia abajo! Si te pierdes, abre la guía (botón ? o tecla G).', click: true },
+  { m: 'Consejo: dos vetas iguales del mismo nivel se fusionan en una de nivel superior que suelta trozos más grandes. ¡Y dicen que hay cobre no muy lejos, hacia abajo! Si te pierdes, abre la Ayuda (botón de arriba a la izquierda o tecla G).', click: true },
 ];
 let npcTimer = 0, npcText = '';
 function npcSay(txt, ms = 7000) { npcText = txt; npcTimer = ms / 1000; updateBubble(); }
@@ -2499,6 +2531,7 @@ addEventListener('keydown', e => {
     else if (place || mode) { place = null; mode = null; }
     else if (P.mode === 'drag') cancelDrag();
     else if (multi.size) clearMulti();
+    else if (lsideKind) closeLeft();
     else if (sideKind) closeSide();
     else openSide('settings');
     updateTools(); updateHint(); return;
@@ -2524,8 +2557,8 @@ addEventListener('keydown', e => {
   if (S.tut < 8) return;
   if (k === 'b') sideKind === 'shop' ? closeSide() : openShop();
   if (k === 'delete' || k === 'backspace') { const s0 = sel && tile(sel.x, sel.y); if (s0 && s0.b && multi.size <= 1) demolish(s0); }
-  if (k === 'j') toggleSide('missions');
-  if (k === 'g') toggleSide('guide');
+  if (k === 'j') toggleLeft('missions');
+  if (k === 'g') toggleLeft('guide');
 });
 const keys = {};
 addEventListener('keydown', e => { if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return; keys[e.key.toLowerCase()] = true; });
@@ -2563,7 +2596,8 @@ document.addEventListener('click', e => {
       if (s && s.b && BDEF[s.b.type].dir) rotateB(s); else toast('Selecciona una máquina para girarla');
       break;
     }
-    case 'missions': toggleSide('missions'); break;
+    case 'missions': toggleLeft('missions'); break;
+    case 'lclose': closeLeft(); break;
     case 'settings': toggleSide('settings'); break;
     case 'close': closeModal(); break;
     case 'sclose': closeSide(); break;
@@ -2602,8 +2636,8 @@ document.addEventListener('click', e => {
       if (s && s.b && s.b.type === 'drill') { s.b.off = !s.b.off; s.b.fl = 0.6; snd('click'); refreshInfo(); }
       break;
     }
-    case 'guide': toggleSide('guide'); break;
-    case 'gtab': guideTab = el.dataset.t; $('sB').scrollTop = 0; refreshPanels(); break;
+    case 'guide': toggleLeft('guide'); break;
+    case 'gtab': guideTab = el.dataset.t; $('lB').scrollTop = 0; refreshPanels(); break;
     // ajustes
     case 'stab': setTab = el.dataset.t; $('sB').scrollTop = 0; refreshPanels(); break;
     case 'stog': {
