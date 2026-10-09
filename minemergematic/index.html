@@ -57,7 +57,22 @@ button{font-family:'Lilita One','Nunito',sans-serif;cursor:pointer;border:none;c
 .gic{flex:none;min-width:44px;height:44px;padding:0 3px;background:#2a170a;border-radius:7px;display:flex;align-items:center;justify-content:center;gap:2px}
 .gi{width:38px;height:38px}
 .gtxt{font-size:24px}
-.fchip{cursor:pointer}.fchip:hover{background:#5a2416}
+.fchip{cursor:pointer}
+.fslots{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.fslot{position:relative;width:40px;height:40px;border-radius:8px;background:#2a170a;border:2px dashed #7a5a3a;display:grid;place-items:center;cursor:pointer;transition:transform .12s,border-color .12s}
+.fslot:hover{transform:scale(1.07)}
+.fslot img{width:32px;height:32px}
+.fslot.on{border:2px solid #8ff08f;background:#24401f}
+.fslot i{position:absolute;top:-6px;right:-6px;width:17px;height:17px;border-radius:50%;background:#c9452f;color:#fff;font-size:10px;font-style:normal;display:grid;place-items:center;border:2px solid #2a170a;opacity:0;transition:opacity .12s}
+.fslot.on:hover i{opacity:1}
+.fslot.add{font-family:'Lilita One';font-size:24px;color:#e8cf9c}
+.fslot.add.open{border-style:solid;border-color:#ffd65a;color:#ffd65a}
+.fstep{font-size:11px;color:#cbb18a;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.6px;font-weight:900}
+.fmats{display:flex;flex-wrap:wrap;gap:5px}
+.fmat{display:flex;align-items:center;gap:5px;padding:3px 9px 3px 6px;border-radius:13px;background:#2a170a;border:2px solid transparent;cursor:pointer;font-size:12.5px;transition:border-color .12s,transform .12s}
+.fmat:hover{transform:translateY(-1px)}
+.fmat i{width:11px;height:11px;border-radius:50%;border:1px solid rgba(0,0,0,.5)}
+.fmat.on{border-color:#ffd65a;background:#4a3010}.fchip:hover{background:#5a2416}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:4px;margin-top:5px}
 .fopt{display:grid;place-items:center;height:34px;border-radius:6px;background:#2a170a;border:2px solid transparent;cursor:pointer;opacity:.6;transition:opacity .12s,border-color .12s,transform .12s}
 .fopt img{width:28px;height:28px}
@@ -143,8 +158,8 @@ button{font-family:'Lilita One','Nunito',sans-serif;cursor:pointer;border:none;c
 .hudbtn[disabled]{opacity:.35;pointer-events:none}
 #misBtn.pop{animation:misPop .5s cubic-bezier(.3,1.6,.5,1)}
 @keyframes misPop{40%{transform:scale(1.15)}}
-body.info-moving #info{outline:3px dashed #7fc8ff;outline-offset:3px;cursor:grab;touch-action:none}
-body.info-moving #info *{pointer-events:none}
+body.info-moving #info,body.info-moving #keys{outline:3px dashed #7fc8ff;outline-offset:3px;cursor:grab;touch-action:none;pointer-events:auto}
+body.info-moving #info *,body.info-moving #keys *{pointer-events:none}
 /* Panel lateral: la tienda, las misiones y los ajustes se abren a la derecha sin pausar el juego */
 :root{--sideW:min(370px,88vw)}
 #side{position:fixed;top:0;right:0;bottom:0;width:var(--sideW);z-index:8;display:flex;flex-direction:column;padding:8px 8px 6px;
@@ -417,7 +432,7 @@ function newState() {
       auto: false, chosen: false, autoSpeed: 7, digTip: true, keyHints: true,
       sound: true, vol: 0.7, music: false, musicVol: 0.4,
       smooth: true, fx: 1, shake: true, floats: true, coinFly: true, grid: false, hq: true, fps: 0,
-      ui: 1, infoPos: 'bl', infoX: 10, infoY: 300, camSpeed: 1, invZoom: false,
+      ui: 1, infoPos: 'bl', infoX: 10, infoY: 300, keysPos: 'auto', keysX: 600, keysY: 500, camSpeed: 1, invZoom: false,
     },
     cam: null, last: Date.now(), won: false,
   };
@@ -828,12 +843,18 @@ function boxTakeOne(b) {
 }
 function boxPutBack(b, it) { if (b.type === 'chest') b.inv.unshift(it); else { if (!b.m) b.m = clone(it); b.n++; } }
 // Saca un objeto de la caja y lo lanza a la casilla libre más cercana
+// Casilla libre pegada a la caja (primero los lados, luego las esquinas)
+const ADJ8 = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]];
+function freeAdj(t) {
+  for (const [dx, dy] of ADJ8) { const n = tile(t.x + dx, t.y + dy); if (n && n.ty === 'floor' && !n.item && !n.b) return n; }
+  return null;
+}
 function emptyOne(t) {
   if (!t || !isBox(t.b)) return false;
+  const dst = freeAdj(t);
+  if (!dst) { toast('No hay sitio libre alrededor de la caja'); snd('err'); return false; }
   const it = boxTakeOne(t.b);
   if (!it) return false;
-  const dst = freeNear(t.x, t.y);
-  if (!dst) { boxPutBack(t.b, it); toast('No queda sitio libre alrededor'); snd('err'); return false; }
   dst.item = it;
   it.ox = (t.x - dst.x) * T; it.oy = (t.y - dst.y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 240;
   t.b.fl = 1;
@@ -1705,7 +1726,7 @@ function updateTools() {
 function updateHint() {
   const h = $('hint');
   let txt = '';
-  if (infoMove) txt = 'Arrastra la tarjeta a donde quieras &nbsp;<button class="btn gr" data-act="infodone">Listo</button> <button class="btn br" data-act="inforeset">Restablecer</button>';
+  if (infoMove) txt = 'Arrastra las tarjetas (información y teclas) a donde quieras &nbsp;<button class="btn gr" data-act="infodone">Listo</button> <button class="btn br" data-act="inforeset">Restablecer</button>';
   else if (place) txt = `Colocando <b>${BDEF[place.type].n}</b> · Clic: colocar · R: girar${place.type === 'corner' ? ' · F: voltear' : ''} · Esc / clic derecho: salir`;
   else if (mode === 'move') txt = 'Modo mover: arrastra un edificio a otra casilla · Esc para salir';
   else if (mode === 'select') txt = 'Selección: arrastra para marcar un área · clic para añadir o quitar · arrastra lo marcado para moverlo todo · Esc para salir';
@@ -1715,15 +1736,23 @@ function updateHint() {
 
 function refreshInfo() { infoDirty = true; }
 let infoDirty = true;
+// Filtro de las cajas: casillas con «+»; se elige primero el material y luego el tipo exacto
+let fpick = null;                 // null = selector cerrado · 'open' = eligiendo material · nombre del material
+const FILTER_MAX = { chest: 6, crate: 1 };
 function filterHTML(b) {
   if (b.type === 'crate' && b.flt && b.flt.length > 1) b.flt.length = 1; // partidas antiguas
-  const f = b.flt || [];
-  let h = `<div class="row" style="margin-top:6px"><span class="lbl">Filtro</span><span>${f.length ? f.length + (f.length === 1 ? ' tipo' : ' tipos') : '<span class="mut">Acepta todo</span>'}</span></div>`;
-  if (f.length) h += '<div class="chips">' + f.map(k => `<span class="chip fchip on" data-act="ftog" data-k="${k}" title="Quitar del filtro">${itemImg(keyItem(k))}✕</span>`).join('') + '</div>';
-  if (filterOpen) {
-    h += `<div class="mut" style="margin-top:6px">${b.type === 'crate' ? 'Elige el único tipo de objeto que guardará:' : 'Elige qué objetos acepta (pulsa para marcar o desmarcar):'}</div><div class="fgrid">`;
-    filterOptions().forEach(k => { h += `<span class="fopt ${f.includes(k) ? 'on' : ''}" data-act="ftog" data-k="${k}" title="${itemName(keyItem(k))}">${itemImg(keyItem(k))}</span>`; });
-    h += '</div>';
+  const f = b.flt || [], max = FILTER_MAX[b.type];
+  let h = `<div class="row" style="margin-top:6px"><span class="lbl">Filtro</span><span class="mut">${f.length ? (b.type === 'crate' ? 'solo este tipo' : 'solo estos tipos') : 'acepta todo'}</span></div><div class="fslots">`;
+  f.forEach(k => { h += `<span class="fslot on" data-act="frem" data-k="${k}" title="Quitar: ${itemName(keyItem(k))}">${itemImg(keyItem(k))}<i>✕</i></span>`; });
+  if (f.length < max) h += `<span class="fslot add ${fpick ? 'open' : ''}" data-act="fadd" title="Añadir al filtro">${fpick ? '–' : '+'}</span>`;
+  h += '</div>';
+  if (fpick) {
+    const mats = MAT_ORDER.concat(ALLOYS).filter(m => S.disc[m]);
+    h += '<div class="fstep">1 · Elige el material</div><div class="fmats">' + mats.map(m => `<span class="fmat ${fpick === m ? 'on' : ''}" data-act="fmat" data-m="${m}"><i style="background:${MATS[m].c}"></i>${MATS[m].n}</span>`).join('') + '</div>';
+    if (fpick !== 'open') {
+      const opts = filterOptions().filter(k => k.split(':')[1] === fpick);
+      h += '<div class="fstep">2 · Elige el tipo</div><div class="fgrid">' + opts.map(k => `<span class="fopt ${f.includes(k) ? 'on' : ''}" data-act="fset" data-k="${k}" title="${itemName(keyItem(k))}">${itemImg(keyItem(k))}</span>`).join('') + '</div>';
+    }
   }
   return h;
 }
@@ -1742,14 +1771,14 @@ function renderInfo() {
   const box = $('info');
   const t = sel ? tile(sel.x, sel.y) : null;
   if (!t) return hideInfo();
-  const sk = t.x + ',' + t.y; if (renderInfo.selKey !== sk) { renderInfo.selKey = sk; filterOpen = false; }
+  const sk = t.x + ',' + t.y; if (renderInfo.selKey !== sk) { renderInfo.selKey = sk; filterOpen = false; fpick = null; }
   let title = '', body = '', btns = '';
   if (renderInfo.lastBtns && !t.b) { renderInfo.lastBtns = ''; $('infoBtns').innerHTML = ''; }
   if (t.b) {
     const b = t.b, def = BDEF[b.type];
     title = def.n + (b.ghost ? ' (plano)' : '');
     body += `<div class="mut">${def.d}</div>`;
-    if (multi.size <= 1) body += '<div class="mut" style="color:#9fd8ff;margin-top:3px">Arrástrala para moverla · Supr para demoler</div>';
+    if (multi.size <= 1) body += '<div class="mut" style="color:#9fd8ff;margin-top:3px">Arrástrala para moverla · llévala a la tienda (o Supr) para demolerla</div>';
     if (b.ghost) {
       body += `<div style="margin-top:6px" class="lbl">Entrega estos materiales (arrástralos o usa embudos):</div><div class="chips">`;
       b.need.forEach(n => { body += `<span class="chip">${itemImg(specItem(n))}${n[3] > 0 ? 'x' + n[3] : '<span class="g">✓</span>'}</span>`; });
@@ -1760,12 +1789,12 @@ function renderInfo() {
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Contenido</span><span>${b.inv.length}/12</span></div><div class="chips">`;
           b.inv.forEach((it, i) => body += `<span class="chip" data-act="takeinv" data-i="${i}" style="cursor:pointer" title="Sacar este">${itemImg(it)}</span>`);
           body += '</div>';
-          if (b.inv.length) body += `<div class="row" style="margin-top:4px"><span class="lbl">Valor total</span><span class="y">${fmt(boxValue(b))}</span></div><div class="mut">Pulsa un objeto para sacarlo.</div>`;
+          if (b.inv.length) body += `<div class="row" style="margin-top:4px"><span class="lbl">Valor total</span><span class="y">${fmt(boxValue(b))}</span></div><div class="mut">Pulsa la caja para soltar un objeto a su alrededor, o pulsa uno de la lista para sacar ese.</div>`;
           body += filterHTML(b);
           break;
         case 'crate':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Contenido</span><span>${b.m ? fmt(b.n) + ' × ' + itemName(b.m) : 'Vacía'}</span></div>`;
-          if (b.m) body += `<div class="row"><span class="lbl">Valor total</span><span class="y">${fmt(boxValue(b))}</span></div>`;
+          if (b.m) body += `<div class="row"><span class="lbl">Valor total</span><span class="y">${fmt(boxValue(b))}</span></div><div class="mut">Pulsa la caja para soltar un objeto a su alrededor.</div>`;
           body += filterHTML(b);
           break;
         case 'furnace':
@@ -1810,16 +1839,8 @@ function renderInfo() {
           break;
       }
     }
-    if (def.dir) btns += '<button class="btn br" data-act="rot">Girar (R)</button>';
-    if (isBox(b)) btns += `<button class="btn br" data-act="fopen">${filterOpen ? 'Cerrar filtro' : 'Filtro'}</button>`;
-    if (b.type === 'corner' && !b.ghost) btns += '<button class="btn br" data-act="flip">Voltear (F)</button>';
     if (b.type === 'drill' && !b.ghost) btns += `<button class="btn ${b.off ? 'gr' : 'rd'}" data-act="drilltog">${b.off ? 'Arrancar' : 'Parar'}</button>`;
-    if (isBox(b) && boxCount(b)) {
-      const on = emptying && emptying.x === t.x && emptying.y === t.y;
-      btns += `<button class="btn br ${on ? 'pulse' : ''}" data-act="empty">${on ? 'Parar' : 'Vaciar'}</button>`;
-      btns += '<button class="btn gr" data-act="sellbox"><span class="coin"></span>Vender todo</button>';
-    }
-    btns += '<button class="btn rd" data-act="demo">Demoler</button>';
+    if (isBox(b) && boxCount(b)) btns += '<button class="btn gr" data-act="sellbox"><span class="coin"></span>Vender todo</button>';
   } else if (t.item) {
     const it = t.item;
     title = itemName(it);
@@ -1980,9 +2001,9 @@ function guideHTML() {
     ${gSec('<span class="gtxt">⬚</span>', 'Mover varias cosas a la vez', 'Mantén <b>Mayús</b> y arrastra por el tablero para marcar un área (en móvil: mantén pulsado medio segundo en el suelo y arrastra). Mayús + clic añade o quita casillas. Luego arrastra cualquiera de lo marcado y se moverá todo el grupo, máquinas incluidas.')}
     ${gSec('<span class="gtxt">🛒</span>', 'La tienda', 'Se abre a la derecha y puedes seguir jugando. Compra picos más fuertes, mejoras para taladros y embudos, vetas y planos. Arrastra vetas y planos directamente al tablero.')}`;
   if (guideTab === 'machines') return `
-    <div class="mut" style="margin-bottom:8px">Los planos se pagan al colocarlos y luego hay que <b>entregarles materiales</b> (arrastrándolos encima o con embudos). R gira las máquinas. Para moverlas, haz clic en una y arrástrala; para demolerla, usa su panel o la tecla Supr.</div>
+    <div class="mut" style="margin-bottom:8px">Los planos se pagan al colocarlos y luego hay que <b>entregarles materiales</b> (arrastrándolos encima o con embudos). R gira las máquinas. Para moverlas, haz clic en una y arrástrala; para demolerla, llévala a la tienda o pulsa Supr.</div>
     ${gSec(gB('blocker'), 'Bloqueador', 'Ocupa una casilla para que las vetas no suelten mineral ahí. Sirve para dirigir hacia dónde cae.')}
-    ${gSec(gB('chest'), 'Cofre', 'Guarda 12 objetos. Con <b>Filtro</b> eliges qué acepta: así puedes clasificar. Tiene botones para <b>vaciar</b> de uno en uno y <b>vender todo</b>.')}
+    ${gSec(gB('chest'), 'Cofre', 'Guarda 12 objetos. Con <b>Filtro</b> eliges qué acepta: así puedes clasificar. Cada clic en el cofre suelta un objeto a su alrededor, y tiene botón de <b>vender todo</b>.')}
     ${gSec(gB('crate'), 'Caja dorada', 'Guarda una cantidad ilimitada de un solo tipo de objeto. Con el filtro decides qué tipo.')}
     ${gSec(gB('drill'), 'Taladro', 'Pica solo la veta que tiene delante (la flecha). Tiene botón de <b>Parar</b>. Si la veta no tiene sitio para soltar mineral, se pone en pausa (luz amarilla) y sigue cuando hay hueco.')}
     ${gSec(gB('furnace'), 'Horno', 'Mete <b>carbón</b> (combustible) y un mineral <b>masivo</b> de cobre, hierro u oro: lo funde en un <b>lingote</b> y lo saca por delante.')}
@@ -2056,7 +2077,7 @@ function settingsHTML() {
       ${sHud()}
       ${sFull()}
       ${sTog('keyHints', 'Atajos de teclado en pantalla', 'Abajo a la derecha: las teclas que puedes usar con lo que tienes seleccionado.')}
-      <div class="set"><span>Tarjeta de información<small>Colócala donde quieras de la pantalla.</small></span><button class="btn br" data-act="infomove">Mover</button></div>
+      <div class="set"><span>Tarjetas de información y teclas<small>Colócalas donde quieras de la pantalla.</small></span><button class="btn br" data-act="infomove">Mover</button></div>
       <div class="sgrp">Picar</div>
       ${sTog('auto', 'Auto-clic', 'Mantén pulsado sobre una veta para picar sin parar.')}
       ${sRange('autoSpeed', 'Velocidad del auto-clic', 3, 15, 1)}
@@ -2085,7 +2106,7 @@ function settingsHTML() {
       ${sFull()}
       ${sTog('keyHints', 'Atajos de teclado en pantalla', 'Abajo a la derecha: las teclas que puedes usar con lo que tienes seleccionado.')}
       ${sSeg('infoPos', 'Tarjeta de información', [['bl', 'Abajo'], ['tl', 'Arriba'], ['custom', 'A medida'], ['off', 'Oculta']])}
-      <div class="set"><span>Colocar la tarjeta a mano<small>Arrástrala a cualquier sitio de la pantalla.</small></span><button class="btn br" data-act="infomove">Mover</button></div>
+      <div class="set"><span>Colocar las tarjetas a mano<small>Información y teclas: arrástralas a cualquier sitio de la pantalla.</small></span><button class="btn br" data-act="infomove">Mover</button></div>
       <div class="sgrp">Cámara</div>
       ${sRange('camSpeed', 'Velocidad de cámara (teclado)', 0.5, 2.5, 0.1)}
       ${sTog('invZoom', 'Invertir zoom de la rueda')}`;
@@ -2122,36 +2143,43 @@ function settingsHTML() {
   }
   return '';
 }
-function applyInfoPos() {
-  const box = $('info');
-  if (S.set.infoPos !== 'custom') { box.style.left = box.style.top = box.style.bottom = ''; return; }
+// Tarjetas que el jugador puede colocar donde quiera: [ajuste de posición, x, y]
+const HUDMOV = { info: ['infoPos', 'infoX', 'infoY'], keys: ['keysPos', 'keysX', 'keysY'] };
+function applyHudPos(id) {
+  const box = $(id), [pk, xk, yk] = HUDMOV[id];
+  if (S.set[pk] !== 'custom') { box.style.left = box.style.top = box.style.bottom = box.style.right = ''; return; }
   const z = S.set.ui, r = box.getBoundingClientRect(), w = r.width || 300 * z, h = r.height || 120 * z;
-  S.set.infoX = clamp(S.set.infoX, 0, Math.max(0, innerWidth - w));
-  S.set.infoY = clamp(S.set.infoY, 0, Math.max(0, innerHeight - h));
-  box.style.left = (S.set.infoX / z) + 'px'; box.style.top = (S.set.infoY / z) + 'px'; box.style.bottom = 'auto';
+  S.set[xk] = clamp(S.set[xk], 0, Math.max(0, innerWidth - w));
+  S.set[yk] = clamp(S.set[yk], 0, Math.max(0, innerHeight - h));
+  box.style.left = (S.set[xk] / z) + 'px'; box.style.top = (S.set[yk] / z) + 'px'; box.style.bottom = 'auto'; box.style.right = 'auto';
 }
+function applyInfoPos() { applyHudPos('info'); applyHudPos('keys'); }
 let infoMove = false, infoDrag = null;
 function startInfoMove() {
-  const box = $('info');
   closeSide();
-  if (S.set.infoPos !== 'custom') {
+  infoMove = true; document.body.classList.add('info-moving');
+  renderInfo(); updateKeys();
+  for (const id in HUDMOV) {
+    const [pk, xk, yk] = HUDMOV[id], box = $(id);
+    if (S.set[pk] === 'custom') continue;
     box.classList.remove('hidden');
     const r = box.getBoundingClientRect();
-    S.set.infoX = r.left; S.set.infoY = r.top; S.set.infoPos = 'custom';
+    S.set[xk] = r.left; S.set[yk] = r.top; S.set[pk] = 'custom';
   }
-  infoMove = true; document.body.classList.add('info-moving');
-  applySettings(); updateHint(); refreshInfo(); renderInfo();
+  applySettings(); updateHint(); refreshInfo();
 }
 function endInfoMove() { infoMove = false; infoDrag = null; document.body.classList.remove('info-moving'); updateHint(); refreshInfo(); save(); }
 document.addEventListener('pointerdown', e => {
-  if (!infoMove || !e.target.closest('#info')) return;
-  const r = $('info').getBoundingClientRect();
-  infoDrag = { dx: e.clientX - r.left, dy: e.clientY - r.top, id: e.pointerId };
+  const el = infoMove && e.target.closest('#info,#keys');
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  infoDrag = { el: el.id, dx: e.clientX - r.left, dy: e.clientY - r.top, id: e.pointerId };
   e.preventDefault();
 });
 document.addEventListener('pointermove', e => {
   if (!infoDrag || e.pointerId !== infoDrag.id) return;
-  S.set.infoX = e.clientX - infoDrag.dx; S.set.infoY = e.clientY - infoDrag.dy; applyInfoPos();
+  const [, xk, yk] = HUDMOV[infoDrag.el];
+  S.set[xk] = e.clientX - infoDrag.dx; S.set[yk] = e.clientY - infoDrag.dy; applyHudPos(infoDrag.el);
 });
 document.addEventListener('pointerup', e => { if (infoDrag && e.pointerId === infoDrag.id) infoDrag = null; });
 addEventListener('resize', () => applyInfoPos());
@@ -2513,6 +2541,7 @@ function rotateB(t) { t.b.dir = (t.b.dir + 1) % 4; t.b.fl = 0.6; snd('click'); r
 function flipB(t) { t.b.flip = t.b.flip ? 0 : 1; t.b.fl = 0.6; snd('click'); refreshInfo(); }
 function moveBuilding(src, dst) {
   if (!src || !src.b || !dst || dst === src) return;
+  if (dst.ty === 'shop') { demolish(src); return; } // soltarla en la tienda la demuele (se recupera todo)
   if (dst.ty !== 'floor' || dst.b || dst.item) { snd('err'); return; }
   dst.b = src.b; src.b = null; dst.b.drop = 0.6; snd('click');
   puff(dst.x * T + T / 2, dst.y * T + T * 0.8, 'rgb(150,135,120)', 3, 20, 6);
@@ -2558,7 +2587,9 @@ function clickTile(t) {
     if (diggable(t) && S.tut >= 9) dig(t);
     sel = { x: t.x, y: t.y }; refreshInfo(); return;
   }
-  sel = { x: t.x, y: t.y }; refreshInfo();
+  sel = { x: t.x, y: t.y };
+  if (isBox(t.b) && boxCount(t.b)) emptyOne(t); // cada clic en una caja suelta un objeto
+  refreshInfo();
 }
 function openShop() { S.stats.shopOpened++; openSide('shop'); tutCheck(); }
 
@@ -2621,7 +2652,7 @@ document.addEventListener('input', e => {
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
   if (!el) return;
-  if (infoMove && el.closest('#info')) return;
+  if (infoMove && el.closest('#info,#keys')) return;
   const a = el.dataset.act;
   snd('click');
   switch (a) {
@@ -2634,7 +2665,10 @@ document.addEventListener('click', e => {
     case 'rotate': {
       if (place && BDEF[place.type].dir) { place.dir = (place.dir + 1) % 4; break; }
       const s = sel && tile(sel.x, sel.y);
-      if (s && s.b && BDEF[s.b.type].dir) rotateB(s); else toast('Selecciona una máquina para girarla');
+      if (s && s.b && BDEF[s.b.type].dir) {
+        // en las curvas, tras 4 giros se voltea: así se llega a las 8 posiciones sin teclado
+        if (s.b.type === 'corner' && s.b.dir === 3) { s.b.dir = 0; flipB(s); } else rotateB(s);
+      } else toast('Selecciona una máquina para girarla');
       break;
     }
     case 'missions': toggleLeft('missions'); break;
@@ -2652,25 +2686,28 @@ document.addEventListener('click', e => {
     case 'takeinv': {
       const s = sel && tile(sel.x, sel.y);
       if (s && s.b && s.b.inv) {
-        const i = +el.dataset.i, it = s.b.inv[i], dst = it && freeNear(s.x, s.y);
+        const i = +el.dataset.i, it = s.b.inv[i], dst = it && freeAdj(s);
         if (!it) break;
-        if (!dst) { toast('No queda sitio libre alrededor'); snd('err'); break; }
+        if (!dst) { toast('No hay sitio libre alrededor de la caja'); snd('err'); break; }
         s.b.inv.splice(i, 1); dst.item = it;
         it.ox = (s.x - dst.x) * T; it.oy = (s.y - dst.y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 240;
         s.b.fl = 1; snd('spawn'); refreshInfo();
       }
       break;
     }
-    case 'ftog': {
+    case 'fadd': fpick = fpick ? null : 'open'; refreshInfo(); break;
+    case 'fmat': fpick = el.dataset.m; refreshInfo(); break;
+    case 'fset': case 'frem': {
       const s = sel && tile(sel.x, sel.y); if (!s || !isBox(s.b)) break;
       const f = s.b.flt || (s.b.flt = []), k = el.dataset.k, i = f.indexOf(k);
-      if (s.b.type === 'crate') {
-        if (i < 0 && s.b.m && itemKey(s.b.m) !== k) { snd('err'); toast('Vacía la caja antes de cambiar el tipo que guarda'); break; }
-        f.length = 0; if (i < 0) f.push(k); // un solo tipo
-      } else i >= 0 ? f.splice(i, 1) : f.push(k);
-      s.b.fl = 0.6; refreshInfo(); break;
+      if (a === 'frem') { if (i >= 0) f.splice(i, 1); }
+      else if (s.b.type === 'crate') {
+        if (s.b.m && itemKey(s.b.m) !== k) { snd('err'); toast('Vacía la caja antes de cambiar el tipo que guarda'); break; }
+        f.length = 0; f.push(k);
+      } else if (i < 0 && f.length < FILTER_MAX.chest) f.push(k);
+      if (a === 'fset') fpick = null;
+      s.b.fl = 0.6; snd('click'); refreshInfo(); break;
     }
-    case 'fopen': filterOpen = !filterOpen; refreshInfo(); break;
     case 'flip': { const s = sel && tile(sel.x, sel.y); if (s && s.b && s.b.type === 'corner') flipB(s); break; }
     case 'drilltog': {
       const s = sel && tile(sel.x, sel.y);
@@ -2707,7 +2744,7 @@ document.addEventListener('click', e => {
       break;
     }
     case 'infodone': endInfoMove(); break;
-    case 'inforeset': S.set.infoPos = 'bl'; applySettings(); endInfoMove(); toast('Tarjeta en su sitio original'); break;
+    case 'inforeset': S.set.infoPos = 'bl'; S.set.keysPos = 'auto'; applySettings(); endInfoMove(); toast('Tarjetas en su sitio original'); break;
     case 'exitmenu': {
       // Guarda y vuelve a la galería de NSgames (relativa en la web, absoluta si se juega en local)
       save();
@@ -2960,7 +2997,7 @@ function frame(now) {
 const kb = (...k) => k.map(x => `<kbd>${x}</kbd>`).join(' + ');
 function keyContext() {
   if (paused) return ['En pausa', [[kb('Intro'), 'Continuar']]];
-  if (infoMove) return ['Moviendo la tarjeta', [['Arrastrar', 'Colocarla'], [kb('Esc'), 'Terminar']]];
+  if (infoMove) return ['Moviendo tarjetas', [['Arrastrar', 'Colocarlas'], [kb('Esc'), 'Terminar']]];
   if (shopDrag && shopDrag.started) {
     const r = [['Soltar', shopDrag.kind === 'build' ? 'Colocar el plano' : 'Comprar la veta'], ['Soltar en panel', 'Cancelar']];
     if (shopDrag.kind === 'build' && BDEF[shopDrag.val].dir) r.unshift([kb('R'), 'Girar']);
@@ -2976,15 +3013,15 @@ function keyContext() {
   }
   if (P.mode === 'drag' && P.drag) return ['Arrastrando ' + itemName(P.drag), [['Sobre uno igual', 'Fusionar'], ['Sobre la tienda', 'Vender'], ['Sobre una máquina', 'Meterlo'], [kb('Esc'), 'Cancelar']]];
   if (P.mode === 'gdrag') return ['Moviendo el grupo', [['Soltar', 'Colocar todo'], [kb('Esc'), 'Cancelar']]];
-  if (P.mode === 'bdrag') return ['Moviendo máquina', [['Soltar', 'Colocarla en otra casilla']]];
+  if (P.mode === 'bdrag') return ['Moviendo máquina', [['Soltar', 'Colocarla en otra casilla'], ['En la tienda', 'Demolerla']]];
   if (multi.size > 1) return [`Selección (${multi.size})`, [['Arrastrar', 'Mover el grupo'], [kb('Mayús') + ' + clic', 'Añadir / quitar'], [kb('Mayús') + ' + arrastrar', 'Añadir un área'], [kb('Esc'), 'Quitar selección']]];
   const t = sel && tile(sel.x, sel.y);
   if (t && t.b) {
     const b = t.b, def = BDEF[b.type], r = [];
     if (def.dir) r.push([kb('R'), 'Girar'], ['Clic derecho', 'Girar']);
     if (b.type === 'corner') r.push([kb('F'), 'Voltear']);
-    r.push(['Arrastrar', 'Mover'], [kb('Supr'), 'Demoler']);
-    if (!b.ghost && isBox(b)) r.push(['Botones', 'Filtro · Vaciar · Vender']);
+    r.push(['Arrastrar', 'Mover'], [kb('Supr'), 'Demoler'], ['A la tienda', 'Demoler']);
+    if (!b.ghost && isBox(b)) r.push(['Clic', 'Soltar un objeto']);
     return [def.n + (b.ghost ? ' (plano)' : ''), r];
   }
   if (t && t.item) {
@@ -2996,7 +3033,7 @@ function keyContext() {
 }
 function updateKeys() {
   const box = $('keys');
-  const show = S.set.keyHints && S.tut >= 8 && !modalKind;
+  const show = (S.set.keyHints || infoMove) && S.tut >= 8 && !modalKind;
   box.classList.toggle('hidden', !show);
   if (!show) return;
   const [title, rows] = keyContext();
@@ -3166,7 +3203,10 @@ function render(dt) {
   }
   if (mode === 'demolish' && hov && hov.b) { g.save(); g.globalAlpha = 0.25 + Math.sin(time * 8) * 0.08; g.fillStyle = '#e0533d'; g.fillRect(hov.x * T, hov.y * T, T, T); g.restore(); }
   if (mode === 'move' && hov && hov.b) { g.strokeStyle = '#7fc8ff'; g.lineWidth = 3; g.strokeRect(hov.x * T + 3, hov.y * T + 3, T - 6, T - 6); }
-  if (P.mode === 'bdrag' && P.bdrag && hov) drawBuilding(g, hov, Object.assign({}, P.bdrag.b, { drop: 0, fl: 0 }), time, 0.55);
+  if (P.mode === 'bdrag' && P.bdrag && hov) {
+    if (hov.ty === 'shop') { const [wx, wy] = toWorld(P.x, P.y); floatHint(g, wx, wy - 30, 'Soltar: demoler (recuperas todo)'); }
+    else drawBuilding(g, hov, Object.assign({}, P.bdrag.b, { drop: 0, fl: 0 }), time, 0.55);
+  }
   // vista previa al arrastrar desde la tienda
   if (shopDrag && shopDrag.started && shopDrag.over && hov) {
     const d = shopDrag, afford = S.coins >= shopDragCost();
