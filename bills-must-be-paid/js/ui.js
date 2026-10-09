@@ -580,12 +580,21 @@ function doBankruptcy(forced) {
   }, true);
 }
 
+// Guarda (si hay partida) y vuelve a la galería de NSgames: relativa en la web, absoluta si se juega en local
+function exitToNS() {
+  if (meta && cyc) save();
+  const url = location.pathname.includes('/nsgames/') ? '../' : 'https://5amueln5.github.io/nsgames/';
+  document.body.style.transition = 'opacity .35s'; document.body.style.opacity = '0';
+  setTimeout(() => { location.href = url; }, 350);
+}
+$('#btnNS').onclick = () => { SFX.click(); exitToNS(); };
 $('#btnSound').onclick = () => { SFX.init(); SFX.enabled = !SFX.enabled; meta.sound = SFX.enabled; save(); renderHub(); };
 $('#btnMenu').onclick = () => {
   SFX.click();
   pushModal({
     cls: 'letter', html: `<div class="lhead"><span class="lic">☰</span><div><small>Menú</small><h2>Pausa</h2></div></div><div class="lbody"><p>La partida se guarda automáticamente en este navegador.</p></div>`,
-    buttons: [{ t: 'Volver al título', cls: 'ghost', fn: () => { save(); showScreen('title'); } },
+    buttons: [{ t: '← Volver a NSgames', cls: 'ghost', fn: exitToNS },
+      { t: 'Volver al título', cls: 'ghost', fn: () => { save(); showScreen('title'); } },
       { t: 'Borrar partida', cls: 'danger', fn: () => pushModal({ cls: 'letter', html: `<div class="lbody"><h2>¿Seguro?</h2><p>Se borrará todo, incluido el Legado.</p></div>`, buttons: [{ t: 'No', cls: 'ghost' }, { t: 'Borrar todo', cls: 'danger', fn: () => { wipe(); meta = null; cyc = null; showScreen('title'); } }] }) },
       { t: 'Seguir', cls: 'primary' }],
   });
