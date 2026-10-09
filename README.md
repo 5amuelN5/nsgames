@@ -1,4 +1,4 @@
-# Videojuegos
+# NSgames
 
 Colección de juegos para el navegador. Juega en https://5amueln5.github.io/videojuegos/
 
