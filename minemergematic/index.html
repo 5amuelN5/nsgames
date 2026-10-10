@@ -1034,6 +1034,7 @@ function initB(b) {
     case 'splitter': b.hold = null; b.t = 0; b.side = 0; break;
   }
 }
+const allDrills = () => G.filter(t => t.b && !t.b.ghost && t.b.type === 'drill');
 function finishBuild(t) {
   const b = t.b;
   b.ghost = false; delete b.need;
@@ -2005,7 +2006,11 @@ function renderInfo() {
       }
     }
     if (b.type === 'compactor' && !b.ghost && (b.buf.length || b.out.length)) btns += '<button class="btn" data-act="compempty">Sacar todo</button>';
-    if (b.type === 'drill' && !b.ghost) btns += `<button class="btn ${b.off ? 'gr' : 'rd'}" data-act="drilltog">${b.off ? 'Arrancar' : 'Parar'}</button>`;
+    if (b.type === 'drill' && !b.ghost) {
+      btns += `<button class="btn ${b.off ? 'gr' : 'rd'}" data-act="drilltog">${b.off ? 'Arrancar' : 'Parar'}</button>`;
+      const ds = allDrills();
+      if (ds.length > 1) { const anyOn = ds.some(d => !d.b.off); btns += `<button class="btn ${anyOn ? 'rd' : 'gr'}" data-act="drillall">${anyOn ? 'Parar todos' : 'Arrancar todos'} (${ds.length})</button>`; }
+    }
     if (isBox(b) && boxCount(b)) btns += '<button class="btn gr" data-act="sellbox"><span class="coin"></span>Vender todo</button>';
   } else if (t.item) {
     const it = t.item;
@@ -2180,7 +2185,7 @@ function guideHTML() {
     ${gSec(gB('blocker'), 'Bloqueador', 'Ocupa una casilla para que las vetas no suelten mineral ahí. Sirve para dirigir hacia dónde cae.')}
     ${gSec(gB('chest'), 'Cofre', 'Guarda 12 objetos. Con <b>Filtro</b> eliges qué acepta: así puedes clasificar. El primer clic lo selecciona y, a partir de ahí, cada clic suelta un objeto a su alrededor. Tiene botón de <b>vender todo</b>.')}
     ${gSec(gB('crate'), 'Caja dorada', 'Guarda una cantidad ilimitada de un solo tipo de objeto. Con el filtro decides qué tipo.')}
-    ${gSec(gB('drill'), 'Taladro', 'Pica solo la veta que tiene delante (la flecha). Tiene botón de <b>Parar</b>. Si la veta no tiene sitio para soltar mineral, se pone en pausa (luz amarilla) y sigue cuando hay hueco.')}
+    ${gSec(gB('drill'), 'Taladro', 'Pica solo la veta que tiene delante (la flecha). Tiene botón de <b>Parar</b> y otro para <b>parar o arrancar todos</b> a la vez. Si la veta no tiene sitio para soltar mineral, se pone en pausa (luz amarilla) y sigue cuando hay hueco.')}
     ${gSec(gB('furnace'), 'Horno', 'Mete <b>carbón</b> (combustible) y un mineral <b>masivo</b> de cobre, hierro u oro: lo funde en un <b>lingote</b> y lo saca por delante.')}
     ${gSec(gB('funnel'), 'Embudo', 'Saca lo que hay en la máquina de <b>detrás</b> (cofre, horno, compactador...) y lo deja <b>delante</b>. <b>No coge nada del suelo</b>: para recoger lo que cae usa un imán o pon el embudo pegado a la veta. Encadénalos para hacer cintas.')}
     ${gSec(gB('corner'), 'Embudo en curva', 'Recibe por un <b>lateral</b> y saca por delante: sirve para girar las cintas 90°. R lo gira y <b>F</b> lo voltea (entrada por la izquierda o por la derecha).')}
@@ -2915,6 +2920,13 @@ document.addEventListener('click', e => {
       s.b.fl = 0.6; snd('click'); refreshInfo(); break;
     }
     case 'flip': { const s = sel && tile(sel.x, sel.y); if (s && s.b && s.b.type === 'corner') flipB(s); break; }
+    case 'drillall': {
+      const ds = allDrills(), stop = ds.some(d => !d.b.off);
+      ds.forEach(d => { d.b.off = stop; d.b.fl = 0.6; });
+      toast(stop ? `${ds.length} taladros parados` : `${ds.length} taladros en marcha`);
+      snd('click'); refreshInfo();
+      break;
+    }
     case 'drilltog': {
       const s = sel && tile(sel.x, sel.y);
       if (s && s.b && s.b.type === 'drill') { s.b.off = !s.b.off; s.b.fl = 0.6; snd('click'); refreshInfo(); }
