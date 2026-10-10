@@ -1034,6 +1034,47 @@ function initB(b) {
     case 'splitter': b.hold = null; b.t = 0; b.side = 0; break;
   }
 }
+// ---------- Sacar lo que hay dentro de las máquinas ----------
+// Orden: primero lo ya producido, luego lo que espera, y el combustible al final
+const MACH_SLOTS = { furnace: ['out', 'ore', 'fuel'], stellar: ['out', 'ore', 'fuel'], compactor: ['out', 'buf'], saw: ['out', 'inp'], forge: ['out', 'in'],
+  mint: ['inp'], cutter: ['out', 'inp'], accel: ['fuel'], funnel: ['hold'], corner: ['hold'], splitter: ['hold'] };
+// El combustible vuelve como carbón: el trozo más grande que quepa en lo que queda
+const fuelPiece = f => { let t = 3; while (t > 0 && FUEL[t] > f) t--; return ore('coal', t); };
+function machItems(b) {
+  const r = [];
+  if (!b || b.ghost) return r;
+  for (const k of MACH_SLOTS[b.type] || []) {
+    const v = b[k];
+    if (k === 'fuel') { if (v > 0) r.push({ k, i: -1, it: fuelPiece(v) }); }
+    else if (Array.isArray(v)) v.forEach((it, i) => r.push({ k, i, it }));
+    else if (v) r.push({ k, i: -1, it: v });
+  }
+  return r;
+}
+function machTake(t, k, i, quiet) {
+  const b = t.b, v = b[k];
+  const it = k === 'fuel' ? (v > 0 ? fuelPiece(v) : null) : Array.isArray(v) ? v[i] : v;
+  if (!it) return false;
+  const dst = freeAdj(t);
+  if (!dst) { if (!quiet) { toast('No hay sitio libre alrededor'); snd('err'); } return false; }
+  if (k === 'fuel') b.fuel -= FUEL[it.t];
+  else if (Array.isArray(v)) v.splice(i, 1);
+  else b[k] = null;
+  if (k !== 'out' && k !== 'fuel') b.prog = 0;
+  delete it.ox; delete it.oy;
+  dst.item = it;
+  it.ox = (t.x - dst.x) * T; it.oy = (t.y - dst.y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 240;
+  b.fl = 1;
+  if (!quiet) { snd('spawn'); refreshInfo(); }
+  return true;
+}
+function machEmpty(t) {
+  let n = 0;
+  for (;;) { const l = machItems(t.b); if (!l.length) break; if (!machTake(t, l[0].k, l[0].i, true)) break; n++; }
+  if (machItems(t.b).length) { toast('No hay más sitio libre alrededor'); snd('err'); }
+  if (n) snd('spawn');
+  refreshInfo();
+}
 const allDrills = () => G.filter(t => t.b && !t.b.ghost && t.b.type === 'drill');
 function finishBuild(t) {
   const b = t.b;
@@ -1965,11 +2006,11 @@ function renderInfo() {
           break;
         case 'compactor':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Dentro</span><span>${b.buf.length}/3</span></div><div class="chips">`;
-          b.buf.forEach((it, i) => body += `<span class="chip" data-act="takeinv" data-l="buf" data-i="${i}" style="cursor:pointer" title="Sacar este">${itemImg(it)}</span>`);
+          b.buf.forEach((it, i) => body += `<span class="chip" data-act="mtake" data-k="buf" data-i="${i}" style="cursor:pointer" title="Sacar este">${itemImg(it)}</span>`);
           body += `</div><div class="bar"><i style="width:${b.prog / COMPACT_TIME * 100}%"></i></div>`;
           if (b.out.length) {
             body += `<div class="row"><span class="lbl">Salida</span><span>${b.out.length}/2</span></div><div class="chips">`;
-            b.out.forEach((it, i) => body += `<span class="chip" data-act="takeinv" data-l="out" data-i="${i}" style="cursor:pointer" title="Sacar este">${itemImg(it)}</span>`);
+            b.out.forEach((it, i) => body += `<span class="chip" data-act="mtake" data-k="out" data-i="${i}" style="cursor:pointer" title="Sacar este">${itemImg(it)}</span>`);
             body += '</div>';
           }
           if (b.buf.length === 3 && b.prog === 0) body += '<div class="r">¡Atascado! Tres minerales distintos. Saca alguno para desatascarlo.</div>';
@@ -2004,8 +2045,14 @@ function renderInfo() {
           if (b.why === 'full') body += '<div class="mut">La veta no tiene dónde soltar el mineral. Se reanudará sola cuando haya sitio.</div>';
           break;
       }
+      const mi = b.type === 'compactor' ? [] : machItems(b);
+      if (mi.length) {
+        body += '<div class="lbl" style="margin-top:6px">Dentro · pulsa uno para sacarlo</div><div class="chips">';
+        mi.forEach(m => body += `<span class="chip" data-act="mtake" data-k="${m.k}" data-i="${m.i}" style="cursor:pointer" title="${m.k === 'fuel' ? 'Sacar combustible: ' : 'Sacar: '}${itemName(m.it)}">${itemImg(m.it)}${m.k === 'fuel' ? '<span class="mut">⛽</span>' : ''}</span>`);
+        body += '</div>';
+      }
     }
-    if (b.type === 'compactor' && !b.ghost && (b.buf.length || b.out.length)) btns += '<button class="btn" data-act="compempty">Sacar todo</button>';
+    if (machItems(b).length) btns += '<button class="btn" data-act="mempty">Sacar todo</button>';
     if (b.type === 'drill' && !b.ghost) {
       btns += `<button class="btn ${b.off ? 'gr' : 'rd'}" data-act="drilltog">${b.off ? 'Arrancar' : 'Parar'}</button>`;
       const ds = allDrills();
@@ -2204,6 +2251,7 @@ function guideHTML() {
     ${gSec('<span class="gtxt">➡️</span>', 'Cómo se mueven las cosas', 'Las vetas sueltan mineral en las casillas de alrededor, también <b>dentro</b> de máquinas que lo acepten (cofres, hornos, compactadores...). Los embudos y curvas solo aceptan lo que les llega por su entrada y <b>no recogen del suelo</b>: una veta pegada a su entrada sí les mete el mineral directamente, y el <b>imán</b> recoge lo que está suelto.')}
     ${gSec(gB('drill') + gB('compactor'), 'Fusionar en automático', 'Rodea una veta de bloqueadores y deja un hueco con un <b>compactador</b>. Pon un taladro picando y encadena compactadores para llegar hasta masivo.')}
     ${gSec(gB('furnace'), 'Fundir en automático', 'Lleva el carbón y el mineral masivo al horno con embudos. Saca los lingotes con otro embudo hacia una sierra, un cofre o un vendedor.')}
+    ${gSec('<span class="gtxt">📤</span>', 'Sacar cosas de las máquinas', 'Selecciona cualquier máquina (horno, forja, sierra, compactador, embudo...) y en su tarjeta pulsa lo que tiene <b>dentro</b> para sacarlo a una casilla de al lado, o usa <b>Sacar todo</b>. El combustible sale como trozos de carbón.')}
     ${gSec(gB('chest'), 'Clasificar', 'Pon un <b>divisor</b> delante de dos cofres con filtros distintos: cada objeto irá al cofre que lo acepte. Las cajas con filtro rechazan lo demás.')}
     ${gSec(gB('corner'), 'Girar cintas', 'Usa el embudo en curva para doblar las esquinas sin perder casillas. Combínalo con embudos rectos para llegar a cualquier sitio.')}
     ${gSec('<span class="gtxt">💤</span>', 'Mientras no juegas', 'Nada avanza si no estás jugando: al salir de la pestaña el juego se pausa hasta que pulses <b>Continuar</b>, y al cerrarlo se queda exactamente como estaba. La partida se guarda sola.')}`;
@@ -2878,21 +2926,8 @@ document.addEventListener('click', e => {
     case 'demo': { const s = sel && tile(sel.x, sel.y); if (s && s.b) demolish(s); break; }
     case 'empty': { const s = sel && tile(sel.x, sel.y); if (s && isBox(s.b)) toggleEmpty(s); break; }
     case 'sellbox': { const s = sel && tile(sel.x, sel.y); if (s && isBox(s.b)) sellBox(s); break; }
-    case 'compempty': {
-      const s = sel && tile(sel.x, sel.y);
-      if (!s || !s.b || s.b.type !== 'compactor') break;
-      let n = 0;
-      for (const l of ['out', 'buf']) while (s.b[l].length) {
-        const dst = freeAdj(s); if (!dst) break;
-        const it = s.b[l].shift(); dst.item = it; n++;
-        it.ox = (s.x - dst.x) * T; it.oy = (s.y - dst.y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 240;
-      }
-      s.b.prog = 0;
-      if (s.b.buf.length || s.b.out.length) { toast('No hay más sitio libre alrededor'); snd('err'); }
-      if (n) { s.b.fl = 1; snd('spawn'); }
-      refreshInfo();
-      break;
-    }
+    case 'mempty': { const s = sel && tile(sel.x, sel.y); if (s && s.b && MACH_SLOTS[s.b.type]) machEmpty(s); break; }
+    case 'mtake': { const s = sel && tile(sel.x, sel.y); if (s && s.b && MACH_SLOTS[s.b.type]) machTake(s, el.dataset.k, +el.dataset.i); break; }
     case 'takeinv': {
       const s = sel && tile(sel.x, sel.y), l = el.dataset.l || 'inv';
       if (s && s.b && s.b[l]) {
