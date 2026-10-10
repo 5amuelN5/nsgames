@@ -1964,9 +1964,15 @@ function renderInfo() {
           break;
         case 'compactor':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Dentro</span><span>${b.buf.length}/3</span></div><div class="chips">`;
-          b.buf.forEach(it => body += `<span class="chip">${itemImg(it)}</span>`);
+          b.buf.forEach((it, i) => body += `<span class="chip" data-act="takeinv" data-l="buf" data-i="${i}" style="cursor:pointer" title="Sacar este">${itemImg(it)}</span>`);
           body += `</div><div class="bar"><i style="width:${b.prog / COMPACT_TIME * 100}%"></i></div>`;
-          if (b.buf.length === 3 && b.prog === 0) body += '<div class="r">¡Atascado! Tres minerales distintos.</div>';
+          if (b.out.length) {
+            body += `<div class="row"><span class="lbl">Salida</span><span>${b.out.length}/2</span></div><div class="chips">`;
+            b.out.forEach((it, i) => body += `<span class="chip" data-act="takeinv" data-l="out" data-i="${i}" style="cursor:pointer" title="Sacar este">${itemImg(it)}</span>`);
+            body += '</div>';
+          }
+          if (b.buf.length === 3 && b.prog === 0) body += '<div class="r">¡Atascado! Tres minerales distintos. Saca alguno para desatascarlo.</div>';
+          if (b.buf.length || b.out.length) body += '<div class="mut">Pulsa un objeto para sacarlo a una casilla de al lado.</div>';
           break;
         case 'saw':
           body += `<div class="row" style="margin-top:6px"><span class="lbl">Cortando</span><span>${b.inp ? itemName(b.inp) : '—'}</span></div><div class="bar"><i style="width:${b.prog / SAW_TIME * 100}%"></i></div>`;
@@ -1998,6 +2004,7 @@ function renderInfo() {
           break;
       }
     }
+    if (b.type === 'compactor' && !b.ghost && (b.buf.length || b.out.length)) btns += '<button class="btn" data-act="compempty">Sacar todo</button>';
     if (b.type === 'drill' && !b.ghost) btns += `<button class="btn ${b.off ? 'gr' : 'rd'}" data-act="drilltog">${b.off ? 'Arrancar' : 'Parar'}</button>`;
     if (isBox(b) && boxCount(b)) btns += '<button class="btn gr" data-act="sellbox"><span class="coin"></span>Vender todo</button>';
   } else if (t.item) {
@@ -2178,7 +2185,7 @@ function guideHTML() {
     ${gSec(gB('funnel'), 'Embudo', 'Saca lo que hay en la máquina de <b>detrás</b> (cofre, horno, compactador...) y lo deja <b>delante</b>. <b>No coge nada del suelo</b>: para recoger lo que cae usa un imán o pon el embudo pegado a la veta. Encadénalos para hacer cintas.')}
     ${gSec(gB('corner'), 'Embudo en curva', 'Recibe por un <b>lateral</b> y saca por delante: sirve para girar las cintas 90°. R lo gira y <b>F</b> lo voltea (entrada por la izquierda o por la derecha).')}
     ${gSec(gB('splitter'), 'Divisor', 'Saca lo de la máquina de detrás y lo reparte alternando izquierda y derecha. Si un lado no acepta el objeto, usa el otro.')}
-    ${gSec(gB('compactor'), 'Compactador', 'Fusiona solo parejas de minerales iguales y saca el resultado por delante. Si se llena con 3 distintos se atasca.')}
+    ${gSec(gB('compactor'), 'Compactador', 'Fusiona solo parejas de minerales iguales y saca el resultado por delante. Si se llena con 3 distintos se atasca: selecciónalo y pulsa lo que tiene dentro para sacarlo, o usa <b>Sacar todo</b>.')}
     ${gSec(gB('saw'), 'Sierra', 'Corta cada lingote en 4 <b>pepitas</b>, que juntas valen más que el lingote.')}
     ${gSec(gB('seller'), 'Vendedor', 'Vende al instante todo lo que le llega. Ideal al final de una cadena.')}
     ${gSec(gB('magnet'), 'Imán', 'Atrae los objetos sueltos que hay a 2 casillas y los deja delante. Ponle un cofre o un embudo enfrente para recoger lo que cae de las vetas.')}
@@ -2866,13 +2873,29 @@ document.addEventListener('click', e => {
     case 'demo': { const s = sel && tile(sel.x, sel.y); if (s && s.b) demolish(s); break; }
     case 'empty': { const s = sel && tile(sel.x, sel.y); if (s && isBox(s.b)) toggleEmpty(s); break; }
     case 'sellbox': { const s = sel && tile(sel.x, sel.y); if (s && isBox(s.b)) sellBox(s); break; }
-    case 'takeinv': {
+    case 'compempty': {
       const s = sel && tile(sel.x, sel.y);
-      if (s && s.b && s.b.inv) {
-        const i = +el.dataset.i, it = s.b.inv[i], dst = it && freeAdj(s);
+      if (!s || !s.b || s.b.type !== 'compactor') break;
+      let n = 0;
+      for (const l of ['out', 'buf']) while (s.b[l].length) {
+        const dst = freeAdj(s); if (!dst) break;
+        const it = s.b[l].shift(); dst.item = it; n++;
+        it.ox = (s.x - dst.x) * T; it.oy = (s.y - dst.y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 240;
+      }
+      s.b.prog = 0;
+      if (s.b.buf.length || s.b.out.length) { toast('No hay más sitio libre alrededor'); snd('err'); }
+      if (n) { s.b.fl = 1; snd('spawn'); }
+      refreshInfo();
+      break;
+    }
+    case 'takeinv': {
+      const s = sel && tile(sel.x, sel.y), l = el.dataset.l || 'inv';
+      if (s && s.b && s.b[l]) {
+        const i = +el.dataset.i, it = s.b[l][i], dst = it && freeAdj(s);
         if (!it) break;
-        if (!dst) { toast('No hay sitio libre alrededor de la caja'); snd('err'); break; }
-        s.b.inv.splice(i, 1); dst.item = it;
+        if (!dst) { toast('No hay sitio libre alrededor'); snd('err'); break; }
+        s.b[l].splice(i, 1); dst.item = it;
+        if (l === 'buf') s.b.prog = 0;
         it.ox = (s.x - dst.x) * T; it.oy = (s.y - dst.y) * T; it.vx = it.vy = 0; it.h = 1; it.hv = 240;
         s.b.fl = 1; snd('spawn'); refreshInfo();
       }
