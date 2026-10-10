@@ -351,9 +351,9 @@ const BDEF = {
   chest:     { n: 'Cofre',         d: 'Guarda hasta 12 objetos. Los embudos pueden meter y sacar de él. Con un filtro solo acepta los objetos elegidos.', c: 150, it: [['ore', 'copper', 2, 2]], u: 'copper' },
   drill:     { n: 'Taladro',       d: 'Pica automáticamente la veta que tiene delante. Se para solo si la veta no tiene sitio donde soltar el mineral y vuelve a arrancar cuando lo hay.', c: 400, it: [['ore', 'coal', 3, 2], ['ore', 'copper', 3, 1]], u: 'copper', dir: true },
   furnace:   { n: 'Horno',         d: 'Funde mineral masivo (cobre, hierro u oro) usando carbón como combustible. Expulsa lingotes por delante.', c: 1500, it: [['ore', 'copper', 3, 2], ['ore', 'coal', 3, 3]], u: 'iron', dir: true },
-  funnel:    { n: 'Embudo',        d: 'Coge lo que hay detrás (suelo o máquina) y lo lleva delante. Encadénalos como una cinta.', c: 300, it: [['ore', 'iron', 2, 1]], u: 'ingot', dir: true },
+  funnel:    { n: 'Embudo',        d: 'Saca lo que hay en la máquina o caja de detrás (no coge nada del suelo) y lo lleva delante. Encadénalos como una cinta.', c: 300, it: [['ore', 'iron', 2, 1]], u: 'ingot', dir: true },
   corner:    { n: 'Embudo en curva', d: 'Coge lo que le llega por un lado y lo saca girando 90°: entra por la izquierda (o la derecha) y sale por delante. R para girar, F para voltear.', c: 350, it: [['ore', 'iron', 2, 1]], u: 'ingot', dir: true },
-  splitter:  { n: 'Divisor',       d: 'Coge lo que hay detrás y lo reparte alternando izquierda y derecha. Si un lado está bloqueado usa el otro.', c: 1200, it: [['ore', 'iron', 3, 1]], u: 'ingot', dir: true },
+  splitter:  { n: 'Divisor',       d: 'Saca lo que hay en la máquina o caja de detrás y lo reparte alternando izquierda y derecha. Si un lado está bloqueado usa el otro.', c: 1200, it: [['ore', 'iron', 3, 1]], u: 'ingot', dir: true },
   compactor: { n: 'Compactador',   d: 'Fusiona automáticamente parejas de minerales o lingotes iguales y expulsa el resultado por delante.', c: 4000, it: [['ingot', 'iron', 0, 1], ['ingot', 'copper', 0, 2]], u: 'ingot', dir: true },
   saw:       { n: 'Sierra',        d: 'Corta cada lingote suelto (no dobles ni bloques) en 4 pepitas, que valen más en total.', c: 5000, it: [['ingot', 'iron', 0, 2]], u: 'ingot', dir: true },
   crate:     { n: 'Caja dorada',   d: 'Almacén sin límite de un único tipo de objeto. Con un filtro eliges qué tipo guarda.', c: 15000, it: [['ingot', 'gold', 0, 1]], u: 'gold'},
@@ -1127,8 +1127,7 @@ function bTake(t, pred) {
 function pullFrom(bt, pred) {
   if (!bt) return null;
   if (bt.b) return (!bt.b.ghost && TAKEABLE[bt.b.type]) ? bTake(bt, pred) : null;
-  if (bt.ty === 'floor' && bt.item && bt.item.k !== 'vein' && pred(bt.item)) { const it = bt.item; bt.item = null; return it; }
-  return null;
+  return null; // del suelo no cogen nada: para eso está el imán
 }
 function outPush(t) {
   const b = t.b;
@@ -2160,7 +2159,7 @@ const gB = type => `<img class="gi" src="${iconURL('b', { type })}" alt="">`;
 const gSec = (icon, title, text) => `<div class="gsec"><div class="gic">${icon}</div><div><b>${title}</b><p>${text}</p></div></div>`;
 function guideHTML() {
   if (guideTab === 'basics') return `
-    ${gSec(gImg(vein('coal')), 'Picar vetas', 'Haz clic en una veta para picarla. Cada veta tiene una <b>dureza</b>: cuando la llenas de golpes suelta un trozo de mineral en una de las 8 casillas de alrededor. Si no queda sitio, la veta se bloquea (aparece un <b>!</b>).')}
+    ${gSec(gImg(vein('coal')), 'Picar vetas', 'Haz clic en una veta para <b>seleccionarla</b> y vuelve a hacer clic para picarla. Cada veta tiene una <b>dureza</b>: cuando la llenas de golpes suelta un trozo de mineral en una de las 8 casillas de alrededor. Si no queda sitio, la veta se bloquea (aparece un <b>!</b>).')}
     ${gSec(gImg(ore('coal', 3)), 'Fusionar', 'Arrastra un trozo encima de otro <b>igual</b> para fusionarlos: pequeño → mediano → grande → <b>masivo</b>. Cada tamaño vale bastante más que dos del anterior.')}
     ${gSec(gImg(ingot('iron', 3)), 'Fusionar lingotes', 'Los lingotes también se fusionan: lingote → lingotes dobles → pila → <b>bloque</b>. Cada nivel vale más que dos del anterior, así que fusionar siempre compensa.')}
     ${gSec(gImg(vein('copper', 2)), 'Subir vetas de nivel', 'Dos vetas del mismo material y nivel se fusionan en una de nivel superior (máximo 5). Las vetas de nivel alto sueltan trozos más grandes y son algo más blandas. Al <b>nivel máximo (5)</b> sueltan mitad trozos <b>grandes</b> y mitad <b>masivos</b>. El Galactium es la excepción: solo hay una veta y no se puede subir de nivel.')}
@@ -2176,9 +2175,9 @@ function guideHTML() {
     ${gSec(gB('crate'), 'Caja dorada', 'Guarda una cantidad ilimitada de un solo tipo de objeto. Con el filtro decides qué tipo.')}
     ${gSec(gB('drill'), 'Taladro', 'Pica solo la veta que tiene delante (la flecha). Tiene botón de <b>Parar</b>. Si la veta no tiene sitio para soltar mineral, se pone en pausa (luz amarilla) y sigue cuando hay hueco.')}
     ${gSec(gB('furnace'), 'Horno', 'Mete <b>carbón</b> (combustible) y un mineral <b>masivo</b> de cobre, hierro u oro: lo funde en un <b>lingote</b> y lo saca por delante.')}
-    ${gSec(gB('funnel'), 'Embudo', 'Coge lo que hay <b>detrás</b> (suelo, cofre, horno...) y lo deja <b>delante</b>. Encadénalos para hacer cintas.')}
+    ${gSec(gB('funnel'), 'Embudo', 'Saca lo que hay en la máquina de <b>detrás</b> (cofre, horno, compactador...) y lo deja <b>delante</b>. <b>No coge nada del suelo</b>: para recoger lo que cae usa un imán o pon el embudo pegado a la veta. Encadénalos para hacer cintas.')}
     ${gSec(gB('corner'), 'Embudo en curva', 'Recibe por un <b>lateral</b> y saca por delante: sirve para girar las cintas 90°. R lo gira y <b>F</b> lo voltea (entrada por la izquierda o por la derecha).')}
-    ${gSec(gB('splitter'), 'Divisor', 'Coge lo de detrás y lo reparte alternando izquierda y derecha. Si un lado no acepta el objeto, usa el otro.')}
+    ${gSec(gB('splitter'), 'Divisor', 'Saca lo de la máquina de detrás y lo reparte alternando izquierda y derecha. Si un lado no acepta el objeto, usa el otro.')}
     ${gSec(gB('compactor'), 'Compactador', 'Fusiona solo parejas de minerales iguales y saca el resultado por delante. Si se llena con 3 distintos se atasca.')}
     ${gSec(gB('saw'), 'Sierra', 'Corta cada lingote en 4 <b>pepitas</b>, que juntas valen más que el lingote.')}
     ${gSec(gB('seller'), 'Vendedor', 'Vende al instante todo lo que le llega. Ideal al final de una cadena.')}
@@ -2190,7 +2189,7 @@ function guideHTML() {
     ${gSec(gB('stellar'), 'Horno estelar', 'El único que funde <b>Galactium masivo</b>. Gasta un carbón masivo por lingote. El lingote de galactium vale 2,6 veces el mineral.')}
     ${gSec(gB('rocket'), 'Cohete galáctico', 'El objetivo final. Necesita astralita, galactium y diamantes tallados. Al terminarlo despega a los 6 s y desde entonces <b>todo se vende un 25 % más caro</b>.')}`;
   if (guideTab === 'auto') return `
-    ${gSec('<span class="gtxt">➡️</span>', 'Cómo se mueven las cosas', 'Las vetas sueltan mineral en las casillas de alrededor, también <b>dentro</b> de máquinas que lo acepten (cofres, hornos, compactadores...). Los embudos y curvas solo aceptan lo que les llega por su entrada.')}
+    ${gSec('<span class="gtxt">➡️</span>', 'Cómo se mueven las cosas', 'Las vetas sueltan mineral en las casillas de alrededor, también <b>dentro</b> de máquinas que lo acepten (cofres, hornos, compactadores...). Los embudos y curvas solo aceptan lo que les llega por su entrada y <b>no recogen del suelo</b>: una veta pegada a su entrada sí les mete el mineral directamente, y el <b>imán</b> recoge lo que está suelto.')}
     ${gSec(gB('drill') + gB('compactor'), 'Fusionar en automático', 'Rodea una veta de bloqueadores y deja un hueco con un <b>compactador</b>. Pon un taladro picando y encadena compactadores para llegar hasta masivo.')}
     ${gSec(gB('furnace'), 'Fundir en automático', 'Lleva el carbón y el mineral masivo al horno con embudos. Saca los lingotes con otro embudo hacia una sierra, un cofre o un vendedor.')}
     ${gSec(gB('chest'), 'Clasificar', 'Pon un <b>divisor</b> delante de dos cofres con filtros distintos: cada objeto irá al cofre que lo acepte. Las cajas con filtro rechazan lo demás.')}
@@ -2464,7 +2463,7 @@ const TUT = [
   { m: 'Los enanos llevamos siglos abriendo minas por todo el reino en busca del Galactium, un elemento rarísimo con el que se puede fabricar casi cualquier cosa.', click: true },
   { m: 'Dicen que hay Galactium escondido en lo más hondo de esta cueva...', click: true },
   { m: 'Pero llegar hasta ahí no será fácil: hará falta ganar mucho dinero, mejorar el equipo y ampliar la mina.', click: true },
-  { m: 'Empecemos por algo sencillo. ¡Toca la veta de carbón para picar!', arrow: 'vein', until: () => S.stats.mined > 0 },
+  { m: 'Empecemos por algo sencillo. Toca la veta de carbón para seleccionarla y vuelve a tocarla para picar.', arrow: 'vein', until: () => S.stats.mined > 0 },
   { m: '¡Genial! Ahora arrastra un trozo de carbón encima de otro igual para fusionarlos y aumentar su valor.', until: () => S.stats.merges > 0 },
   { m: '¡Buen trabajo! Sigue picando y fusionando hasta tener un carbón masivo.', until: () => countOre('coal', 3) >= 1 || S.stats.soldMassive > 0 },
   { m: '¡Perfecto! Arrastra el carbón masivo hasta mi tienda para vendérmelo.', arrow: 'shop', until: () => S.stats.sold > 0 },
@@ -2618,8 +2617,11 @@ cv.addEventListener('pointerdown', e => {
   P.mode = 'press'; P.autoAcc = 0; P.downTime = e.timeStamp; P.downPerf = performance.now();
   P.shift = !place && (e.shiftKey || mode === 'select');
   P.inGroup = !place && !!t && multi.size > 1 && multi.has(tIdx(t));
+  P.veinOk = false;
   if (!place && !mode && !P.shift && !P.inGroup && t && t.item && t.item.k === 'vein' && !t.b) {
-    hitVein(t, PICKS[S.pick].p, false);
+    // el primer clic solo selecciona la veta; con ella seleccionada, cada clic la pica
+    P.veinOk = !!sel && sel.x === t.x && sel.y === t.y;
+    if (P.veinOk) hitVein(t, PICKS[S.pick].p, false); else snd('click');
     sel = { x: t.x, y: t.y }; refreshInfo();
   }
 });
@@ -3134,7 +3136,7 @@ function frame(now) {
   // auto-clic
   if (P.down && P.mode === 'press' && S.set.auto && !place && !mode) {
     const t = tileAtScreen(P.x, P.y);
-    if (t && t === P.downTile && t.item && t.item.k === 'vein' && !t.b) {
+    if (P.veinOk && t && t === P.downTile && t.item && t.item.k === 'vein' && !t.b) {
       const per = 1 / S.set.autoSpeed;
       P.autoAcc += dt;
       while (P.autoAcc >= per) { P.autoAcc -= per; hitVein(t, PICKS[S.pick].p, false); }
@@ -3207,7 +3209,7 @@ function keyContext() {
   }
   if (t && t.item) {
     const it = t.item;
-    if (it.k === 'vein') return [itemName(it), [['Clic', 'Picar'], S.set.auto ? ['Mantener', 'Picar sin parar'] : ['Clic repetido', 'Picar'], ['Arrastrar', 'Mover'], ['Sobre otra igual', 'Subir de nivel'], ['A la tienda', 'Vender']]];
+    if (it.k === 'vein') return [itemName(it), [['Clic otra vez', 'Picar'], S.set.auto ? ['Mantener', 'Picar sin parar'] : ['Clic repetido', 'Picar'], ['Arrastrar', 'Mover'], ['Sobre otra igual', 'Subir de nivel'], ['A la tienda', 'Vender']]];
     return [itemName(it), [['Arrastrar', 'Mover'], ['Sobre uno igual', 'Fusionar'], ['A la tienda', 'Vender'], [kb('Mayús') + ' + clic', 'Seleccionar varios']]];
   }
   return ['General', [['Clic', 'Picar · excavar · seleccionar'], [kb('Mayús') + ' + arrastrar', 'Seleccionar un área'], [kb('W', 'A', 'S', 'D'), 'Mover la cámara'], ['Rueda', 'Zoom'], [kb('B'), 'Tienda'], [kb('J'), 'Misiones'], [kb('G'), 'Ayuda'], [kb('Esc'), 'Ajustes']]];
