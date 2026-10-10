@@ -34,9 +34,9 @@ button{font-family:'Lilita One','Nunito',sans-serif;cursor:pointer;border:none;c
 .tb[disabled]{opacity:.35;pointer-events:none}
 
 /* Panel de info */
-#info{position:fixed;left:10px;bottom:10px;width:min(330px,calc(100vw - 20px));z-index:5;padding:6px}
+#info{position:fixed;left:10px;bottom:10px;width:min(330px,calc(100vw / var(--ui,1) - 20px));z-index:5;padding:6px}
 #infoT{font-size:16px;text-align:center;padding:2px 6px 6px}
-#infoB{padding:8px;font-size:13px;line-height:1.45;max-height:42vh;overflow:auto}
+#infoB{padding:8px;font-size:13px;line-height:1.45;max-height:calc(42vh / var(--ui,1));overflow:auto;overscroll-behavior:contain}
 .row{display:flex;justify-content:space-between;gap:8px}
 .lbl{color:#e8cf9c}
 .g{color:#8ff08f}.y{color:#ffd65a}.r{color:#ff8f7a}.mut{color:#cbb18a;font-size:12px}
@@ -135,7 +135,7 @@ button{font-family:'Lilita One','Nunito',sans-serif;cursor:pointer;border:none;c
 #coins,#lbtns,#lside,#tools,#info,#hint,#toasts,#side{zoom:var(--ui,1)}
 #lbtns{position:fixed;top:50px;left:10px;z-index:9;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 /* Panel izquierdo: misiones y ayuda, se despliega desde sus botones */
-#lside{position:fixed;top:128px;left:10px;width:min(440px,calc(100vw - 20px));max-height:calc(100vh - 140px);z-index:8;display:flex;flex-direction:column;padding:8px;
+#lside{position:fixed;top:128px;left:10px;width:min(440px,calc(100vw / var(--ui,1) - 20px));max-height:max(160px,calc(100vh / var(--ui,1) - 140px));z-index:8;display:flex;flex-direction:column;padding:8px;
   transform-origin:24px -40px;transform:scale(.55);opacity:0;visibility:hidden;
   transition:transform .32s cubic-bezier(.2,1.25,.4,1),opacity .18s,visibility 0s .32s;box-shadow:inset 0 0 0 2px #a8744a,6px 8px 24px rgba(0,0,0,.5)}
 #lside.open{transform:none;opacity:1;visibility:visible;transition:transform .36s cubic-bezier(.2,1.25,.4,1),opacity .18s,visibility 0s}
@@ -161,7 +161,7 @@ button{font-family:'Lilita One','Nunito',sans-serif;cursor:pointer;border:none;c
 body.info-moving #info,body.info-moving #keys{outline:3px dashed #7fc8ff;outline-offset:3px;cursor:grab;touch-action:none;pointer-events:auto}
 body.info-moving #info *,body.info-moving #keys *{pointer-events:none}
 /* Panel lateral: la tienda, las misiones y los ajustes se abren a la derecha sin pausar el juego */
-:root{--sideW:min(370px,88vw)}
+:root{--sideW:min(370px,calc(88vw / var(--ui,1)))}
 #side{position:fixed;top:0;right:0;bottom:0;width:var(--sideW);z-index:8;display:flex;flex-direction:column;padding:8px 8px 6px;
   border-radius:12px 0 0 12px;border-right:none;transform:translateX(106%);visibility:hidden;
   transition:transform .38s cubic-bezier(.2,.9,.25,1.04),visibility 0s .38s;box-shadow:inset 0 0 0 2px #a8744a,-8px 0 24px rgba(0,0,0,.45)}
@@ -176,7 +176,7 @@ body.info-moving #info *,body.info-moving #keys *{pointer-events:none}
 #tools{transition:right .38s cubic-bezier(.2,.9,.25,1.04)}
 body.side-open #tools{right:calc(var(--sideW) + 10px)}
 /* Atajos de teclado según lo seleccionado */
-#keys{position:fixed;right:10px;bottom:10px;z-index:4;zoom:var(--ui,1);min-width:190px;max-width:280px;padding:7px 10px 8px;border-radius:9px;
+#keys{position:fixed;right:10px;bottom:10px;z-index:4;zoom:var(--ui,1);min-width:190px;max-width:min(280px,calc(100vw / var(--ui,1) - 20px));max-height:calc(100vh / var(--ui,1) - 20px);overflow:hidden;padding:7px 10px 8px;border-radius:9px;
   background:rgba(42,23,10,.82);border:2px solid #1a0d04;box-shadow:0 3px 0 rgba(0,0,0,.35);pointer-events:none;transition:right .38s cubic-bezier(.2,.9,.25,1.04),opacity .2s}
 body.side-open #keys{right:calc(var(--sideW) + 10px)}
 #keysT{font-family:'Lilita One';font-size:13px;color:#ffd65a;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -247,11 +247,11 @@ kbd{font-family:'Lilita One';background:#2a170a;border:2px solid #1a0d04;border-
 .stats div{background:#4a2e16;border-radius:6px;padding:7px 9px;font-size:13px}
 .stats b{display:block;font-family:'Lilita One';font-weight:400;font-size:17px;color:#ffd65a}
 @media (max-width:600px){
-  #side{top:auto;left:0;width:auto;height:58vh;border-radius:14px 14px 0 0;border-right:3px solid var(--wood-dd);transform:translateY(106%)}
+  #side{top:auto;left:0;width:auto;height:calc(58vh / var(--ui,1));border-radius:14px 14px 0 0;border-right:3px solid var(--wood-dd);transform:translateY(106%)}
   body.side-open #tools{right:10px}
   input[type=range]{width:100px}
   .set{flex-wrap:wrap}
-  #info{width:calc(100vw - 76px)}
+  #info{width:calc(100vw / var(--ui,1) - 76px)}
   .tb{width:42px;height:42px}
   #bubble{max-width:180px;font-size:12px}
 }
